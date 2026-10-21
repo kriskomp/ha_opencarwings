@@ -1,0 +1,16 @@
+refresh:
+  name: Odśwież dane
+  description: >
+    Wymusza natychmiastowe odświeżenie danych z OpenCARWINGS. Jeśli nie
+    podano entry_id, odświeżone zostaną wszystkie skonfigurowane wpisy
+    integracji.
+  fields:
+    entry_id:
+      name: Entry ID
+      description: >
+        ID konkretnego wpisu konfiguracji (config entry) do odświeżenia.
+        Zostaw puste, aby odświeżyć wszystkie.
+      required: false
+      example: "01986d5c1234567890abcdef12345678"
+      selector:
+        text:

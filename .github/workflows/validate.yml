@@ -1,0 +1,35 @@
+# Catches the class of problem that breaks a HACS install (a manifest or
+# hacs.json HACS cannot parse, a missing required key, a bad domain) before a
+# release is cut. The weekly run catches drift in the validators themselves.
+name: Validate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main on 2026-09-29
+        with:
+          category: integration
+          # HACS reads license metadata from the default branch, so feature
+          # branches skip that one check; main validates it.
+          ignore: ${{ github.ref != 'refs/heads/main' && 'license' || '' }}
+
+  hassfest:
+    name: hassfest (manifest sanity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master on 2026-09-29

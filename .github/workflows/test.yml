@@ -1,0 +1,32 @@
+# Runs the pytest suite on every push and pull request.
+# The tests stub Home Assistant; they need pytest and the opencarwings_client package.
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: pytest (Python 3.14)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install pytest and the API client
+        run: |
+          pip install -r requirements-dev.txt
+          pip install "git+https://github.com/developerfromjokela/opencarwings-python.git@master"
+      # SyntaxWarning as an error: Home Assistant runs on Python 3.14, which
+      # warns about code such as 'return' in 'finally' (see 2.2.2).
+      - name: Run the suite
+        run: python -W error::SyntaxWarning -m pytest -ra -p no:cacheprovider tests/

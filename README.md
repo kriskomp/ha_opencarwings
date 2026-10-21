@@ -10,6 +10,12 @@
 [![Community Forum][forum-shield]][forum]
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
+> **Fork note.** This is the [kriskomp](https://github.com/kriskomp/ha_opencarwings) fork of
+> [developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings).
+> Changes are listed in [CHANGELOG.md](CHANGELOG.md) and in [Releases](https://github.com/kriskomp/ha_opencarwings/releases):
+> a release is published automatically when the version in `manifest.json` changes on `main`.
+> Install through HACS as a custom repository (category *Integration*).
+
 Nice, lightweight Home Assistant integration that connects to the OpenCARWINGS API to expose your Nissan (or compatible) cars as devices in Home Assistant.
 
 ---
