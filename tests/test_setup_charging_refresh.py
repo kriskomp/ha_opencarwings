@@ -72,7 +72,8 @@ async def test_charging_refresh_registers_an_interval(monkeypatch):
     assert runner.interval_minutes == 5
     assert event_stub.CALLS[0]["interval"] == timedelta(minutes=5)
     assert event_stub.CALLS[0]["action"] == runner.async_tick
-    assert len(entry.unloads) == 2  # the interval and the options-reload listener
+    # the A/C controller's timers, the interval and the options-reload listener
+    assert len(entry.unloads) == 3
 
 
 @pytest.mark.asyncio

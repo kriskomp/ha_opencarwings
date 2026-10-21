@@ -1,4 +1,4 @@
-"""Button platform providing a manual refresh button for OpenCARWINGS."""
+"""Button platform: command buttons per car and a diagnostic "Reconnect" for the live connection."""
 from __future__ import annotations
 
 import logging
@@ -8,6 +8,12 @@ from opencarwings_client import ApiClient, ApiCommandCreateRequest, CommandRespo
 
 from homeassistant.components.button import ButtonEntity
 from typing import Any, List
+
+try:
+    from homeassistant.helpers.entity import EntityCategory
+except Exception:  # pragma: no cover
+    class EntityCategory:  # type: ignore
+        DIAGNOSTIC = "diagnostic"
 
 from . import DOMAIN
 from .charging_refresh import follow_command, store_car
@@ -21,8 +27,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
     coordinator = data.get("coordinator")
 
-    # Create a single per-entry refresh button
-    entities: List[OpenCarwingsButton] = [OpenCarWingsRefreshButton(entry.entry_id, coordinator=coordinator)]
+    entities: List[OpenCarwingsButton] = []
 
     # Per-car command buttons, only for commands the car's TCU supports (the API says which)
     cars: List[CarData] = data.get("cars", [])
@@ -37,6 +42,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
             else:
                 unsupported_ids.append(ent.unique_id)
     await async_remove_unsupported(hass, entry, unsupported_ids)
+
+    # One "Reconnect" for the account's live connection, on the first car's device (diagnostic section)
+    ws = data.get("websocket")
+    first = next((car for car in cars if car.vin), None)
+    if ws is not None and first is not None:
+        entities.append(OpenCarWingsReconnectButton(entry.entry_id, first, ws, coordinator=coordinator))
 
     # Tests set hass on the entity for direct method calls
     for ent in entities:
@@ -117,40 +128,38 @@ class OpenCarWingsCommandButton(OpenCarwingsButton):
             _LOGGER.exception("Failed to request data refresh for %s", self._vin)
             raise
 
-class OpenCarWingsRefreshButton(OpenCarwingsButton):
-    """Button that triggers a coordinator refresh when pressed."""
+class OpenCarWingsReconnectButton(OpenCarwingsButton):
+    """Diagnostic: close the live connection and open a new one (like F5 on the OpenCARWINGS web page).
 
-    def __init__(self, entry_id: str, coordinator=None) -> None:
-        super().__init__(entry_id, CarData(vin=""), coordinator)
-        self._entry_id = entry_id
-        self._coordinator = coordinator
+    It talks to the server only; it never wakes the car. The connection is shared by all cars of the account,
+    so there is one of these, on the first car's device.
+    """
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:connection"
+
+    def __init__(self, entry_id: str, car: CarData, ws, coordinator=None) -> None:
+        super().__init__(entry_id, car, coordinator)
+        self._ws = ws
 
     @property
     def name(self) -> str:
-        return "OpenCARWINGS Refresh"
+        car_instance = self._car.get_latest_car()
+        label = (car_instance.nickname or self._vin) if car_instance is not None else self._vin
+        return f"Reconnect live updates for {label}"
 
     @property
     def unique_id(self) -> str:
-        return f"ha_opencarwings_refresh_{self._entry_id}"
+        return f"ha_opencarwings_reconnect_{self._entry_id}"
 
     async def async_press(self) -> None:
-        """Press the button to force an immediate coordinator refresh."""
-        if not self._coordinator:
-            _LOGGER.warning("Refresh button pressed but coordinator is not available for %s", self._entry_id)
-            return
-        try:
-            await self._coordinator.async_request_refresh()
-        except Exception:  # pragma: no cover - network or unexpected
-            _LOGGER.exception("Failed to refresh OpenCARWINGS data for %s", self._entry_id)
-            raise
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        return {"entry_id": self._entry_id}
+        await self._ws.async_reconnect()
 
 
 class CarRefreshButton(OpenCarWingsCommandButton):
     """Button that sends a 'Refresh data' command for a specific car."""
+
+    _attr_icon = "mdi:car-connected"
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(1, entry_id, car, coordinator)
@@ -170,6 +179,8 @@ class CarRefreshButton(OpenCarWingsCommandButton):
 class CarChargeStartButton(OpenCarWingsCommandButton):
     """Button that sends a 'Charge start' command for a specific car."""
 
+    _attr_icon = "mdi:flash"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(2, entry_id, car, coordinator)
 
@@ -186,6 +197,8 @@ class CarChargeStartButton(OpenCarWingsCommandButton):
 
 class CarChargeStart80Button(OpenCarWingsCommandButton):
     """Button that sends a 'Charge start 80%' command for a specific car."""
+
+    _attr_icon = "mdi:battery-charging-80"
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(6, entry_id, car, coordinator)
@@ -204,6 +217,8 @@ class CarChargeStart80Button(OpenCarWingsCommandButton):
 class CarDoorLockButton(OpenCarWingsCommandButton):
     """Command 7 = "Door unlock" on the server (the class and unique id keep their old, swapped names)."""
 
+    _attr_icon = "mdi:lock-open-variant"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(7, entry_id, car, coordinator)
 
@@ -221,6 +236,8 @@ class CarDoorLockButton(OpenCarWingsCommandButton):
 class CarDoorUnLockButton(OpenCarWingsCommandButton):
     """Command 8 = "Door lock" on the server."""
 
+    _attr_icon = "mdi:lock"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(8, entry_id, car, coordinator)
 
@@ -236,6 +253,8 @@ class CarDoorUnLockButton(OpenCarWingsCommandButton):
         return f"ha_opencarwings_car_doorunlock_{self._vin}"
 
 class CarHornButton(OpenCarWingsCommandButton):
+
+    _attr_icon = "mdi:bullhorn"
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(9, entry_id, car, coordinator)
@@ -253,6 +272,8 @@ class CarHornButton(OpenCarWingsCommandButton):
 
 class CarLightsButton(OpenCarWingsCommandButton):
 
+    _attr_icon = "mdi:car-light-high"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(10, entry_id, car, coordinator)
 
@@ -268,6 +289,8 @@ class CarLightsButton(OpenCarWingsCommandButton):
         return f"ha_opencarwings_car_lights_{self._vin}"
 
 class CarHornAndLightsButton(OpenCarWingsCommandButton):
+
+    _attr_icon = "mdi:car-light-alert"
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(11, entry_id, car, coordinator)
@@ -285,6 +308,8 @@ class CarHornAndLightsButton(OpenCarWingsCommandButton):
 
 class CarStopHornAndLightsButton(OpenCarWingsCommandButton):
 
+    _attr_icon = "mdi:bullhorn-variant-outline"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(12, entry_id, car, coordinator)
 
@@ -301,6 +326,8 @@ class CarStopHornAndLightsButton(OpenCarWingsCommandButton):
 
 class CarRemoteStartButton(OpenCarWingsCommandButton):
 
+    _attr_icon = "mdi:play-circle-outline"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(13, entry_id, car, coordinator)
 
@@ -316,6 +343,8 @@ class CarRemoteStartButton(OpenCarWingsCommandButton):
         return f"ha_opencarwings_car_remote_start_{self._vin}"
 
 class CarRemoteStopButton(OpenCarWingsCommandButton):
+
+    _attr_icon = "mdi:stop-circle-outline"
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(14, entry_id, car, coordinator)

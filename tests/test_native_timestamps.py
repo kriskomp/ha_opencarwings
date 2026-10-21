@@ -11,15 +11,9 @@ def _sensor(cls, last_update=None):
     return cls(coord, "e1", "VIN1", seed_car=coord.data[0])
 
 
-def test_last_requested_is_a_native_timestamp():
-    when = datetime(2026, 10, 21, 8, 59, 13, 106914, tzinfo=timezone.utc)
-    ent = _sensor(sensor_mod.CarLastRequestedSensor, when)
+def test_last_updated_is_a_native_timestamp():
+    ent = _sensor(sensor_mod.CarLastUpdatedSensor)
     assert ent._attr_device_class == sensor_mod.SensorDeviceClass.TIMESTAMP
-    assert ent.native_value == when
-
-
-def test_last_requested_is_unknown_before_the_first_read():
-    assert _sensor(sensor_mod.CarLastRequestedSensor).native_value is None
 
 
 def test_data_age_is_readable_text_with_minutes_attribute():

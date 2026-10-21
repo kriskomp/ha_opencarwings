@@ -78,12 +78,27 @@ class OcwWebSocket:
         self.last_error: str | None = None
         self._auth_failures = 0
         self._stopping = False
+        self._create_task: Callable[[Any], asyncio.Task] = asyncio.ensure_future
 
     # -- lifecycle ---------------------------------------------------------
     def start(self, create_task: Callable[[Any], asyncio.Task] = asyncio.ensure_future) -> None:
         if self._task is None:
             self._stopping = False
+            self._create_task = create_task
             self._task = create_task(self._run())
+
+    async def async_reconnect(self) -> None:
+        """Close the connection and open a new one right now (the "F5" for a stuck live connection).
+
+        Also forgets earlier failures, so a slow retry after a rejected token starts over at once. A fresh
+        connect re-reads the whole state over REST, like any other reconnect.
+        """
+        create_task = self._create_task
+        await self.stop()
+        self._auth_failures = 0
+        self.auth_failed = False
+        self.last_error = None
+        self.start(create_task)
 
     async def stop(self) -> None:
         self._stopping = True

@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 DOMAIN = "ha_opencarwings"
-PLATFORMS = ["sensor", "binary_sensor", "switch", "device_tracker", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "device_tracker", "button"]
 
 # default: 15 minutes
 DEFAULT_SCAN_INTERVAL_MIN = 15
@@ -17,7 +17,7 @@ DEFAULT_CHARGING_REFRESH_MIN = 0
 DEFAULT_IDLE_REFRESH_MIN = 0
 # Live updates over WebSocket (on by default); REST stays as a slow safety poll.
 DEFAULT_USE_WEBSOCKET = True
-SAFETY_POLL_MIN = 60
+SAFETY_POLL_MIN = 30
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,8 +90,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _async_update_data() -> List[CarData]:
         """Fetch data from API."""
-        from datetime import datetime, timezone
-
         try:
             cars_api = opencarwings_client.CarsApi(client)
             # Prefer dedicated helper if available
@@ -106,8 +104,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 _LOGGER.exception(err)
                 _LOGGER.error("Could not enrich car list with details: %s", err)
 
-            # Track the last successful update time for CarLastRequestedSensor
-            coordinator.last_update_time = datetime.now(timezone.utc)
             return cars
         except ApiException as err:
             raise UpdateFailed(err)
@@ -142,6 +138,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN][entry.entry_id]["cars"] = hass.data[DOMAIN][entry.entry_id].get("cars", [])
         # Don't abort setup; proceed to forward platforms so entity platforms can be set up
         pass
+
+    # A/C state kept between a command and the car's report (see ac.py)
+    from .ac import AcController
+
+    ac = AcController(hass, entry.entry_id)
+    hass.data[DOMAIN][entry.entry_id]["ac"] = ac
+    if hasattr(entry, "async_on_unload"):
+        entry.async_on_unload(ac.cancel_all)
+
+    # Tidy registry leftovers of earlier versions before the platforms register their entities
+    from .cleanup import run_cleanup
+
+    run_cleanup(hass, entry.entry_id, [str(c.vin) for c in (coordinator.data or []) if c.vin])
 
     coordinator.push_connected = False
     await _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_token, scan_min)
@@ -180,37 +189,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
-    # Register integration service to allow manual refresh via service call
-    # Register only once per hass instance
-    if not hass.data[DOMAIN].get("_service_refresh_registered"):
-        async def _handle_refresh(call):
-            """Handle service call to refresh OpenCARWINGS data."""
-            entry_id = (call.data or {}).get("entry_id") if call else None
-            if entry_id:
-                data = hass.data.get(DOMAIN, {}).get(entry_id)
-                if not data:
-                    _LOGGER.warning("Refresh requested for unknown entry %s", entry_id)
-                    return
-                coord = data.get("coordinator")
-                if coord:
-                    await coord.async_request_refresh()
-            else:
-                # refresh all coordinators
-                for d in hass.data.get(DOMAIN, {}).values():
-                    # skip non-dict sentinel values stored in hass.data (like flags)
-                    if not isinstance(d, dict):
-                        continue
-                    coord = d.get("coordinator")
-                    if coord:
-                        await coord.async_request_refresh()
-
-        try:
-            hass.services.async_register(DOMAIN, "refresh", _handle_refresh)
-            hass.data[DOMAIN]["_service_refresh_registered"] = True
-        except Exception:
-            # If hass.services isn't available in tests/stubs, ignore
-            _LOGGER.debug("Could not register refresh service (services not available in hass stub)")
-
     _LOGGER.info("OpenCARWINGS setup complete for %s", entry.title)
     return True
 
@@ -226,6 +204,7 @@ async def _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_t
 
     from .api import DEFAULT_API_BASE
     from .charging_refresh import store_car
+    from .connection import ConnectionWatch
     from .websocket import OcwWebSocket
 
     normal = timedelta(minutes=int(scan_min))
@@ -237,16 +216,23 @@ async def _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_t
     async def _on_resync() -> None:
         await coordinator.async_refresh()
 
+    watch: ConnectionWatch | None = None
+
     def _on_state(connected: bool) -> None:
         coordinator.push_connected = connected
         coordinator.update_interval = safety if connected else normal
         coordinator.async_update_listeners()
+        if watch is not None:
+            watch.on_state(connected)
 
     def _on_auth_failed() -> None:
         entry.async_start_reauth(hass)
 
     def _on_alert(data: dict) -> None:
         hass.bus.async_fire(f"{DOMAIN}_alert", {"entry_id": entry.entry_id, **data})
+        ac = hass.data[DOMAIN].get(entry.entry_id, {}).get("ac")
+        if ac is not None:
+            ac.handle_alert(data)
 
     ws = OcwWebSocket(
         async_get_clientsession(hass),
@@ -259,6 +245,10 @@ async def _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_t
         on_alert=_on_alert,
     )
     hass.data[DOMAIN][entry.entry_id]["websocket"] = ws
+    watch = ConnectionWatch(hass, entry.entry_id, ws)
+    watch.on_state(False)  # not connected yet: the grace period starts now
+    if hasattr(entry, "async_on_unload"):
+        entry.async_on_unload(watch.close)
     if hasattr(hass, "async_create_background_task"):
         ws.start(lambda coro: hass.async_create_background_task(coro, f"{DOMAIN}_websocket"))
     else:  # minimal test stubs
