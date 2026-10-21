@@ -33,6 +33,7 @@ from .freshness import (
     data_timestamp,
     format_local,
 )
+from .options import track_location_enabled
 from .ticker import track_minute
 from .util import CarData
 
@@ -246,9 +247,11 @@ class CarValueSensor(OpenCarwingsCarEntity, SensorEntity):
 class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
     """High-level status string for the car (charging, running, ac_on, idle)."""
 
-    def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
+    def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None,
+                 include_location: bool = True) -> None:
         super().__init__(coordinator, entry_id, vin, seed_car)
         self._attr_unique_id = f"ha_opencarwings_status_{vin}"
+        self._include_location = include_location
 
     @property
     def name(self) -> str:
@@ -301,7 +304,9 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
             "range_acoff": ev.get("range_acoff"),
             "color": car.get("color"),
             "raw_car": {
-                **car
+                key: value
+                for key, value in car.items()
+                if self._include_location or key != "location"
             }
         }
 
@@ -542,7 +547,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
             entities.append(CarValueSensor(coordinator, entry.entry_id, vin, spec, seed_car=car))
 
         # Status
-        entities.append(CarStatusSensor(coordinator, entry.entry_id, vin, seed_car=car))
+        entities.append(CarStatusSensor(coordinator, entry.entry_id, vin, seed_car=car,
+                                        include_location=track_location_enabled(entry)))
 
         # Diagnostics
         entities.append(CarLastUpdatedSensor(coordinator, entry.entry_id, vin, seed_car=car))

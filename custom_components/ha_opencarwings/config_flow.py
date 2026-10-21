@@ -188,5 +188,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(
                     "data_fresh_minutes", default=int(current("data_fresh_minutes", DEFAULT_FRESH_MINUTES))
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
+                vol.Required("track_location", default=bool(current("track_location", True))): bool,
             }),
         )

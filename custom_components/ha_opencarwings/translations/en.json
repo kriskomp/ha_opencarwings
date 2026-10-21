@@ -35,12 +35,14 @@
           "scan_interval": "Update interval (reads the server)",
           "charging_refresh_interval": "Ask the car for data every N minutes while charging",
           "data_fresh_minutes": "Data counts as fresh for (minutes)",
-          "use_websocket": "Live updates (WebSocket)"
+          "use_websocket": "Live updates (WebSocket)",
+          "track_location": "Show the car on the map (device tracker)"
         },
         "data_description": {
           "charging_refresh_interval": "Sends the \"Refresh data\" command only while the car's last known state is charging. Off by default.",
           "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor.",
-          "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a slow safety poll (1 hour or the interval, whichever is longer). Turn off if your network blocks WebSockets."
+          "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a slow safety poll (1 hour or the interval, whichever is longer). Turn off if your network blocks WebSockets.",
+          "track_location": "On: a device tracker entity shows the car on the map. Off: no tracker is created and the position is left out of the Status sensor attributes."
         }
       }
     }
