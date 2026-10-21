@@ -1,6 +1,7 @@
 {
   "domain": "ha_opencarwings",
   "name": "OpenCARWINGS Integration",
+  "categories": ["vehicles_transport.cars_evs"],
   "codeowners": ["@czapeczek", "@tomeczko", "@kriskomp"],
   "config_flow": true,
   "documentation": "https://github.com/kriskomp/ha_opencarwings",

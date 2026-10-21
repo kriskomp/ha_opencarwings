@@ -35,6 +35,7 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
   developerfromjokela/ha_opencarwings, którego autor stworzył też serwer OpenCARWINGS.
 - **Usunięte pliki Dockera** (`Dockerfile`, `.dockerignore`, `run_tests_in_docker.*`): obraz oparty o Pythona 3.11
   nie uruchomiłby obecnego kodu (składnia z 3.12) i instalował tylko `pytest`. Testy uruchamia GitHub Actions.
+- `manifest.json`: kategoria integracji `vehicles_transport.cars_evs` (ostrzeżenie walidacji HACS o braku kategorii).
 - **Testy:** nowe testy dla wieku danych, wyboru momentu odświeżenia, śledzenia komend, encji, opcji i konfiguracji.
 
 ## 2026.10.21.1
