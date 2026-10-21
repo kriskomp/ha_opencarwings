@@ -13,6 +13,9 @@ PLATFORMS = ["sensor", "binary_sensor", "switch", "device_tracker", "button"]
 DEFAULT_SCAN_INTERVAL_MIN = 15
 # 0 = off. Minutes between "Refresh data" commands while the car is charging.
 DEFAULT_CHARGING_REFRESH_MIN = 0
+# Live updates over WebSocket (on by default); REST stays as a slow safety poll.
+DEFAULT_USE_WEBSOCKET = True
+SAFETY_POLL_MIN = 60
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +141,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Don't abort setup; proceed to forward platforms so entity platforms can be set up
         pass
 
+    coordinator.push_connected = False
+    await _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_token, scan_min)
+
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -193,6 +199,58 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.info("OpenCARWINGS setup complete for %s", entry.title)
     return True
+
+
+async def _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_token, scan_min) -> None:
+    """Start the live connection; REST polling slows down while it is up."""
+    from datetime import timedelta
+
+    use_ws = opts.get("use_websocket", entry.data.get("use_websocket", DEFAULT_USE_WEBSOCKET))
+    if not use_ws or not api_token:
+        return
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    from .api import DEFAULT_API_BASE
+    from .charging_refresh import store_car
+    from .websocket import OcwWebSocket
+
+    normal = timedelta(minutes=int(scan_min))
+    safety = timedelta(minutes=max(SAFETY_POLL_MIN, int(scan_min)))
+
+    def _on_car(car) -> None:
+        store_car(coordinator, str(car.vin), car)
+
+    async def _on_resync() -> None:
+        await coordinator.async_refresh()
+
+    def _on_state(connected: bool) -> None:
+        coordinator.push_connected = connected
+        coordinator.update_interval = safety if connected else normal
+        coordinator.async_update_listeners()
+
+    def _on_auth_failed() -> None:
+        entry.async_start_reauth(hass)
+
+    def _on_alert(data: dict) -> None:
+        hass.bus.async_fire(f"{DOMAIN}_alert", {"entry_id": entry.entry_id, **data})
+
+    ws = OcwWebSocket(
+        async_get_clientsession(hass),
+        base_url or DEFAULT_API_BASE,
+        api_token,
+        on_car=_on_car,
+        on_resync=_on_resync,
+        on_state=_on_state,
+        on_auth_failed=_on_auth_failed,
+        on_alert=_on_alert,
+    )
+    hass.data[DOMAIN][entry.entry_id]["websocket"] = ws
+    if hasattr(hass, "async_create_background_task"):
+        ws.start(lambda coro: hass.async_create_background_task(coro, f"{DOMAIN}_websocket"))
+    else:  # minimal test stubs
+        ws.start(hass.async_create_task)
+    if hasattr(entry, "async_on_unload"):
+        entry.async_on_unload(ws.stop)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

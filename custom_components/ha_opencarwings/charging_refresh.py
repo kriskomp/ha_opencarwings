@@ -21,6 +21,8 @@ from .freshness import COMMAND_REFRESH, command_pending, refresh_due
 _LOGGER = logging.getLogger(__name__)
 
 POLL_SECONDS = 15
+# Poll this many times less often while the WebSocket is connected.
+PUSH_POLL_FACTOR = 4
 # The server marks a command as timed out after a few minutes; give it room.
 POLL_TIMEOUT_SECONDS = 8 * 60
 
@@ -54,8 +56,15 @@ async def follow_command(client: Any, coordinator: Any, vin: str, *, poll_second
     waited = 0
     car = None
     while waited < timeout_seconds:
-        await asyncio.sleep(poll_seconds)
-        waited += poll_seconds
+        # With a live WebSocket the server pushes the result, so poll rarely (REST stays the safety net).
+        push = bool(getattr(coordinator, "push_connected", False))
+        step = poll_seconds * PUSH_POLL_FACTOR if push else poll_seconds
+        await asyncio.sleep(step)
+        waited += step
+        pushed = _coordinator_car(coordinator, vin) if push else None
+        if pushed is not None and not command_pending(pushed):
+            _LOGGER.debug("Command for %s finished (pushed)", vin)
+            return pushed
         car = await cars_api.api_car_read(vin)
         store_car(coordinator, vin, car)
         if not command_pending(car):
@@ -63,6 +72,13 @@ async def follow_command(client: Any, coordinator: Any, vin: str, *, poll_second
             return car
     _LOGGER.warning("Command for %s still pending after %s s", vin, waited)
     return car
+
+
+def _coordinator_car(coordinator: Any, vin: str) -> Any:
+    for car in getattr(coordinator, "data", None) or []:
+        if car.vin == vin:
+            return car.get_latest_car()
+    return None
 
 
 class ChargingRefresh:

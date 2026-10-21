@@ -5,6 +5,26 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.21.3
+
+- **Aktualizacje na żywo przez WebSocket** (`/ws/notif/`, ten sam token API co w REST, bez loginu i hasła).
+  Serwer wysyła pełny stan auta przy każdym pakiecie z auta, zmianie lokalizacji, konfiguracji i wyniku komendy,
+  więc „Data Age”, „Command Status” i reszta encji zmieniają się od razu. Opcja „Aktualizacje na żywo (WebSocket)”
+  w *Konfiguruj* (domyślnie włączona); `iot_class` zmieniony na `cloud_push`.
+- **Ograniczenia WebSocket obsłużone w kodzie:**
+  - brak odtwarzania zdarzeń → po każdym (ponownym) połączeniu pełny odczyt przez REST, a odpytywanie działa
+    dalej jako wolna siatka bezpieczeństwa (1 godzina lub ustawiony interwał, co dłuższe); po rozłączeniu wraca
+    zwykły interwał,
+  - brak pinga aplikacyjnego → heartbeat 30 s i ponowne łączenie z rosnącym opóźnieniem (5 s … 5 min),
+  - serwer zamyka połączenie przy złym tokenie → odrzucony handshake (401/403) lub trzy zamknięcia przed
+    komunikatem `listen` to błąd uwierzytelnienia: bez szybkiej pętli ponowień, ponowna próba co godzinę
+    i prośba o nowy token (nowy krok *reauth*),
+  - WebSocket nie wymusza nowych danych → komenda „Refresh data” nadal potrzebna; jej wynik przychodzi
+    od razu, a śledzenie komendy odpytuje 4x rzadziej, gdy socket działa.
+- Z README usunięta pozycja „Implement WebSockets client” z listy To-Do (zrobione).
+- Nowa encja diagnostyczna „Push Connection” (binary_sensor) oraz zdarzenie `ha_opencarwings_alert` dla
+  komunikatów `alert` z serwera.
+
 ## 2026.10.21.2
 
 - **Skąd wiadomo, że dane pochodzą z auta.** Sensory „Last Updated” i atrybuty `last_connection` / `last_evinfo` /

@@ -8,11 +8,21 @@
           "scan_interval": "Interwał odświeżania danych",
           "api_base_url": "Adres API"
         }
+      },
+      "reauth_confirm": {
+        "title": "Ponowne uwierzytelnienie OpenCARWINGS",
+        "description": "Serwer odrzucił token API. Podaj nowy.",
+        "data": {
+          "token": "Token API"
+        }
       }
     },
     "error": {
       "auth": "Nieprawidłowy token API",
       "unknown": "Nieoczekiwany błąd"
+    },
+    "abort": {
+      "reauth_successful": "Token zaktualizowany"
     }
   },
   "options": {
@@ -24,11 +34,13 @@
           "api_base_url": "Adres API",
           "scan_interval": "Interwał odświeżania (odczyt z serwera)",
           "charging_refresh_interval": "Pytaj auto o dane co N minut w czasie ładowania",
-          "data_fresh_minutes": "Dane są świeże przez (minuty)"
+          "data_fresh_minutes": "Dane są świeże przez (minuty)",
+          "use_websocket": "Aktualizacje na żywo (WebSocket)"
         },
         "data_description": {
           "charging_refresh_interval": "Wysyła komendę „Odśwież dane” tylko gdy ostatni znany stan auta to ładowanie. Domyślnie wyłączone.",
-          "data_fresh_minutes": "Używane przez sensor binarny „Data Fresh”."
+          "data_fresh_minutes": "Używane przez sensor binarny „Data Fresh”.",
+          "use_websocket": "Serwer przesyła zmiany od razu. Interwał odczytu działa wtedy tylko jako wolna siatka bezpieczeństwa (1 godzina lub interwał, zależnie co dłuższe). Wyłącz, jeśli sieć blokuje WebSocket."
         }
       }
     }
