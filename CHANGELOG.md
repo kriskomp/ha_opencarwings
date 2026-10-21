@@ -13,6 +13,9 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
     była już w kodzie, brakowało jej opisu w interfejsie,
   - `manifest.json`: wymaganie `opencarwings_client@git+…` (z nazwą pakietu) zamiast samego adresu git,
     żeby pip poprawnie rozpoznawał pakiet.
+- **Logo:** ikona integracji (`brand/icon.png`, `icon@2x.png`) to znak projektu OpenCARWINGS (`docs/public/favicon.svg` z
+  [developerfromjokela/opencarwings](https://github.com/developerfromjokela/opencarwings), licencja GPL-2.0),
+  zamiast napisu Nissan CARWINGS.
 - `manifest.json` bez klucza `platforms`, którego Home Assistant nie zna, i z kluczami w kolejności wymaganej
   przez hassfest. Dodany właściciel kodu `@kriskomp`, dokumentacja wskazuje na ten fork.
 - **Wydania automatyczne:** po zmianie wersji w `manifest.json` na `main` GitHub Actions uruchamia testy
