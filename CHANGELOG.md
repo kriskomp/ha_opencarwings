@@ -35,6 +35,7 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
   podmienia obiekty, więc pozycja nigdy się nie aktualizowała. Tracker czyta teraz bieżące dane koordynatora
   (jak pozostałe encje). Atrybuty trackera mają `last_updated` (czas pozycji, `dd.mm.rrrr gg:mm`); brak pozycji
   nie powoduje już błędu.
+- Razem z WebSocket (2026.10.21.3) pozycja na mapie zmienia się od razu po zdarzeniu `location` z serwera.
 - **Testy:** opcja (wł./wył., sprzątanie rejestru), śledzenie koordynatora, atrybuty, ukrywanie pozycji w `raw_car`.
 
 ## 2026.10.21.2
