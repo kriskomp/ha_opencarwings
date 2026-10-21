@@ -24,8 +24,16 @@ except Exception:  # pragma: no cover
         DURATION = "duration"
         ENERGY = "energy"
         TEMPERATURE = "temperature"
+        TIMESTAMP = "timestamp"
 
 from . import DOMAIN
+from .freshness import (
+    command_summary,
+    data_age_minutes,
+    data_timestamp,
+    format_local,
+)
+from .ticker import track_minute
 from .util import CarData
 
 _LOGGER = logging.getLogger(__name__)
@@ -273,8 +281,16 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
         ev = car.get("ev_info", {}) or {}
         return {
             ATTR_ATTRIBUTION: "Data provided by OpenCARWINGS",
-            "last_connection": car.get("last_connection"),
-            "last_evinfo": ev.get("last_updated"),
+            "last_connection": format_local(
+                getattr(self._get_car().get_latest_car(), "last_connection", None)
+            ),
+            "last_evinfo": format_local(data_timestamp(self._get_car().get_latest_car())[0]),
+            "data_age_minutes": (
+                None
+                if (age := data_age_minutes(self._get_car().get_latest_car())) is None
+                else int(age)
+            ),
+            "command_requested": car.get("command_requested"),
             "signal_level": car.get("signal_level"),
             "carrier": car.get("carrier"),
             "navi_version": car.get("navi_version"),
@@ -350,9 +366,10 @@ class CarVINSensor(OpenCarwingsCarEntity, SensorEntity):
 
 
 class CarLastUpdatedSensor(OpenCarwingsCarEntity, SensorEntity):
-    """Diagnostic: timestamp provided by the car (ev_info.last_updated or location or last_connection)."""
+    """Diagnostic: when the car last sent data (ev_info.last_updated, else last_connection)."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
         super().__init__(coordinator, entry_id, vin, seed_car)
@@ -365,15 +382,83 @@ class CarLastUpdatedSensor(OpenCarwingsCarEntity, SensorEntity):
         return f"{prefix} Last Updated"
 
     @property
-    def native_value(self) -> str:
+    def native_value(self) -> datetime | None:
+        ts, _ = data_timestamp(self._get_car().get_latest_car())
+        return ts
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        ts, source = data_timestamp(self._get_car().get_latest_car())
+        return {"source": source, "local_time": format_local(ts)}
+
+
+class CarDataAgeSensor(OpenCarwingsCarEntity, SensorEntity):
+    """Diagnostic: minutes since the car last sent data (updates every minute)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = "min"
+
+    def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
+        super().__init__(coordinator, entry_id, vin, seed_car)
+        self._attr_unique_id = f"ha_opencarwings_data_age_{vin}"
+
+    @property
+    def name(self) -> str:
         car = self._get_car_dict()
-        ev = car.get("ev_info") or {}
-        loc = car.get("location") or {}
-        ts = ev.get("last_updated") or loc.get("last_updated") or car.get("last_connection")
-        parsed = _parse_ts(ts) if isinstance(ts, str) else None
-        if parsed:
-            return _format_dt(parsed) or parsed.isoformat()
-        return "unknown"
+        prefix = car.get("nickname") or "Car"
+        return f"{prefix} Data Age"
+
+    @property
+    def native_value(self) -> int | None:
+        age = data_age_minutes(self._get_car().get_latest_car())
+        return None if age is None else int(age)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        ts, source = data_timestamp(self._get_car().get_latest_car())
+        return {"source": source, "last_data_time": format_local(ts)}
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        track_minute(self)
+
+
+class CarCommandStatusSensor(OpenCarwingsCarEntity, SensorEntity):
+    """Diagnostic: result of the last command sent to the car (from the API)."""
+
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
+        super().__init__(coordinator, entry_id, vin, seed_car)
+        self._attr_unique_id = f"ha_opencarwings_command_status_{vin}"
+
+    @property
+    def name(self) -> str:
+        car = self._get_car_dict()
+        prefix = car.get("nickname") or "Car"
+        return f"{prefix} Command Status"
+
+    @property
+    def native_value(self) -> str:
+        summary = command_summary(self._get_car().get_latest_car())
+        if not summary:
+            return "unknown"
+        if summary["command_requested"]:
+            return "waiting"
+        return (summary.get("command_result_display") or "unknown").lower()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        summary = command_summary(self._get_car().get_latest_car())
+        if not summary:
+            return {}
+        return {
+            "command": summary["command_type_display"],
+            "command_type": summary["command_type"],
+            "command_requested": summary["command_requested"],
+            "requested_at": format_local(summary["command_request_time"]),
+            "last_confirmed_refresh": format_local(summary["last_confirmed_refresh"]),
+        }
 
 
 class CarLastRequestedSensor(OpenCarwingsCarEntity, SensorEntity):
@@ -438,6 +523,7 @@ class CarListSensor(SensorEntity):
 # Setup
 # -----------------------------
 
+
 async def async_setup_entry(hass, entry, async_add_entities):
     data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
     coordinator = data.get("coordinator")
@@ -460,6 +546,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
         # Diagnostics
         entities.append(CarLastUpdatedSensor(coordinator, entry.entry_id, vin, seed_car=car))
+        entities.append(CarDataAgeSensor(coordinator, entry.entry_id, vin, seed_car=car))
+        entities.append(CarCommandStatusSensor(coordinator, entry.entry_id, vin, seed_car=car))
         entities.append(CarLastRequestedSensor(coordinator, entry.entry_id, vin, seed_car=car))
         entities.append(CarVINSensor(coordinator, entry.entry_id, vin, seed_car=car))
 

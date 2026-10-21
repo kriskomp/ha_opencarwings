@@ -24,6 +24,17 @@ SCAN_INTERVAL_CHOICES = [
     (720, "12 hours"),
     (1440, "1 day"),
 ]
+# Minutes between "Refresh data" commands while the car is charging (0 = off)
+CHARGING_REFRESH_CHOICES = [
+    (0, "Off"),
+    (5, "5 minutes"),
+    (10, "10 minutes"),
+    (15, "15 minutes"),
+    (30, "30 minutes"),
+]
+DEFAULT_CHARGING_REFRESH_MIN = 0
+# Data older than this many minutes is reported as not fresh
+DEFAULT_FRESH_MINUTES = 30
 # Values used when selector is not available (fallback)
 SCAN_INTERVAL_OPTIONS = [c[0] for c in SCAN_INTERVAL_CHOICES]
 DEFAULT_SCAN_INTERVAL_MIN = 15
@@ -36,6 +47,11 @@ class OpenCARWINGSConfigFlow(config_entries.ConfigFlow, domain="ha_opencarwings"
     """Config flow for OpenCARWINGS."""
 
     VERSION = 2
+
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        """Options flow (shown as "Configure" on the integration)."""
+        return OptionsFlowHandler()
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step where user provides credentials."""
@@ -94,37 +110,49 @@ class OpenCARWINGSConfigFlow(config_entries.ConfigFlow, domain="ha_opencarwings"
         return self.async_show_form(step_id="user", data_schema=data_schema, errors=errors)
 
 
+def _select(choices):
+    """A select selector; Home Assistant selectors need string values."""
+    try:
+        from homeassistant.helpers import selector
+
+        return selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[{"value": str(v), "label": l} for v, l in choices]
+            )
+        )
+    except Exception:  # selector not available in minimal test stubs
+        return vol.In([str(v) for v, _ in choices])
+
+
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+    """Options: token, API address, poll interval, charging refresh, freshness."""
 
     async def async_step_init(self, user_input=None):
+        entry = self.config_entry
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            data = dict(user_input)
+            for key in ("scan_interval", "charging_refresh_interval", "data_fresh_minutes"):
+                if key in data:
+                    data[key] = int(data[key])
+            return self.async_create_entry(title="", data=data)
 
-        current_scan = self.config_entry.options.get("scan_interval", self.config_entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL_MIN))
-        current_api = self.config_entry.options.get("api_base_url", self.config_entry.data.get("api_base_url", DEFAULT_API_BASE))
-        current_api_token = self.config_entry.options.get(CONF_TOKEN, self.config_entry.data.get("api_token"))
-        try:
-            from homeassistant.helpers import selector
-
-            scan_selector = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[{"value": v, "label": l} for v, l in SCAN_INTERVAL_CHOICES]
-                )
-            )
-        except Exception:
-            scan_selector = vol.In(SCAN_INTERVAL_OPTIONS)
+        def current(key, default):
+            return entry.options.get(key, entry.data.get(key, default))
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Required(CONF_TOKEN, default=current_api_token): str,
-                vol.Required("scan_interval", default=current_scan): scan_selector,
-                vol.Required("api_base_url", default=current_api): str,
+                vol.Required("api_token", default=current("api_token", "")): str,
+                vol.Required("api_base_url", default=current("api_base_url", DEFAULT_API_BASE)): str,
+                vol.Required(
+                    "scan_interval", default=str(current("scan_interval", DEFAULT_SCAN_INTERVAL_MIN))
+                ): _select(SCAN_INTERVAL_CHOICES),
+                vol.Required(
+                    "charging_refresh_interval",
+                    default=str(current("charging_refresh_interval", DEFAULT_CHARGING_REFRESH_MIN)),
+                ): _select(CHARGING_REFRESH_CHOICES),
+                vol.Required(
+                    "data_fresh_minutes", default=int(current("data_fresh_minutes", DEFAULT_FRESH_MINUTES))
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
             }),
         )
-
-
-async def async_get_options_flow(config_entry):
-    return OptionsFlowHandler(config_entry)

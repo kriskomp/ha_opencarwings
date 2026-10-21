@@ -29,7 +29,7 @@ class ConfigEntry:
 class OptionsFlow:
     """Minimal stub for options flow base class."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry=None):
         self.config_entry = config_entry
 
     def async_create_entry(self, *, title: str, data: dict):

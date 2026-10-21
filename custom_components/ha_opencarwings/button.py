@@ -10,6 +10,7 @@ from homeassistant.components.button import ButtonEntity
 from typing import Any, List
 
 from . import DOMAIN
+from .charging_refresh import follow_command, store_car
 from .util import CarData
 
 _LOGGER = logging.getLogger(__name__)
@@ -92,15 +93,14 @@ class OpenCarWingsCommandButton(OpenCarwingsButton):
                 command_pin=self._command_pin
             ))
             try:
-                if self._coordinator:
-                    if self._vin in self._coordinator.data:
-                        new_data = self._coordinator.data
-                        car_curr_data: CarData = new_data[self._vin]
-                        car_curr_data.car_detail = command_result.car
-                        new_data[self._vin] = car_curr_data
-                        await self._coordinator.async_update(new_data)
+                store_car(self._coordinator, self._vin, command_result.car)
+                # Follow the command so "Command Status" and the data age update
+                # as soon as the car answers (or the server gives up).
+                self.hass.async_create_task(
+                    follow_command(hass_client(self.hass, self._entry_id), self._coordinator, self._vin)
+                )
             except Exception:  # pragma: no cover - coordinator failure
-                _LOGGER.exception("Failed to update coordinator data after requesting charge start for %s", self._vin)
+                _LOGGER.exception("Failed to update coordinator data after command for %s", self._vin)
         except Exception:  # pragma: no cover - network
             _LOGGER.exception("Failed to request data refresh for %s", self._vin)
             raise

@@ -1,30 +1,15 @@
 # OpenCARWINGS Home Assistant Integration
 
 [![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
-
-![Project Maintenance][maintenance-shield]
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
-
-[![Community Forum][forum-shield]][forum]
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 > **Fork note.** This is the [kriskomp](https://github.com/kriskomp/ha_opencarwings) fork of
-> [developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings).
+> [developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings),
+> created by developerfromjokela, who is also the author of the OpenCARWINGS server this integration talks to.
 > Changes are listed in [CHANGELOG.md](CHANGELOG.md) and in [Releases](https://github.com/kriskomp/ha_opencarwings/releases):
 > a release is published automatically when the version in `manifest.json` changes on `main`.
 > Install through HACS as a custom repository (category *Integration*).
 
 Nice, lightweight Home Assistant integration that connects to the OpenCARWINGS API to expose your Nissan (or compatible) cars as devices in Home Assistant.
-
----
-
-## Support the project ☕
-
-This is my first integration for HA. If you find it useful I'd really appreciate if you buy me a coffe:
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/czapeczek)
-
 
 ---
 
@@ -36,13 +21,45 @@ Per car the integration currently exposes:
   - Range (A/C on / A/C off)
   - Charge cable plugged in (plugged / unplugged)
   - High-level status (charging / running / ac_on / idle)
-  - **Per-car "Last Updated"** (diagnostic): reports the ISO 8601 timestamp of the last direct reading from the car. The sensor is created per VIN, shows the most recent timestamp found in `ev_info.last_updated`, `location.last_updated`, or `last_connection`, and has the unique id pattern `ha_opencarwings_last_updated_<VIN>`.
+  - **Per-car "Last Updated"** (diagnostic, `timestamp`): when the car last sent a data packet (`ev_info.last_updated`, falling back to `last_connection`). Unique id `ha_opencarwings_last_updated_<VIN>`.
+  - **Per-car "Data Age"** (diagnostic): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
+  - **Per-car "Data Fresh"** (binary sensor): on while the data is not older than the threshold set in *Configure* (default 30 min). Unique id `ha_opencarwings_data_fresh_<VIN>`.
+  - **Per-car "Command Status"** (diagnostic): result of the last command: `waiting`, `success`, `error` or `timeout`; the attribute `last_confirmed_refresh` tells when the car last answered a refresh command. Unique id `ha_opencarwings_command_status_<VIN>`.
   - **Per-car "Last Requested"** (diagnostic): reports the last time the integration requested data from the API (coordinator's last update time). The sensor is created per VIN and has the unique id pattern `ha_opencarwings_last_requested_<VIN>`.
   - A top-level `OpenCARWINGS Cars` sensor listing your cars and VINs
 - Device tracker: car GPS (uses `last_location` / `location` returned by the API). The tracker entity is attached to the same car device as the per-car buttons and shares the car VIN as the device identifier; the tracker entity itself keeps a stable `unique_id` of the form `ha_opencarwings_tracker_<VIN>`. The visible name prefers the car's `nickname` if present, otherwise it falls back to `model_name` (for example, "MyCar Tracker").
 - Switch: A/C control (on/off) — sends commands to the car via the OpenCARWINGS command endpoint
 - Button: **Manual refresh** — a per-integration button is available to force an immediate refresh from the OpenCARWINGS service (unique id: `ha_opencarwings_refresh_<entry_id>`).
 - Button: **Per-car "Request refresh"** — each car has a per-vehicle button labeled like `Request data refresh for <nickname|model>` (for example, "Request data refresh for MyCar"). Pressing it sends a "Refresh data" command to OpenCARWINGS (unique id: `ha_opencarwings_car_refresh_<VIN>`).
+
+---
+
+## Is the data really from the car? ✅
+
+OpenCARWINGS keeps the last data the car sent, so reading the API right after a refresh command can return an
+old record. Use these to tell the difference:
+
+- `Data Age` / `Data Fresh` / `Last Updated` come from `ev_info.last_updated`, which the server sets only when a
+  data packet actually arrives from the car.
+- `Command Status` shows `waiting` until the server gets the car's answer, then `success`, `error` or `timeout`.
+  After you press any command button (or toggle A/C) the integration follows the command (every 15 s, up to
+  8 min), so these entities update without a script.
+- The attributes of the `Status` sensor also show `last_connection`, `last_evinfo` and `data_age_minutes`
+  (dates as `dd.mm.yyyy HH:MM`, local time).
+
+## Refresh while charging ⚡
+
+*Settings → Devices & services → OpenCARWINGS → Configure* → **Ask the car for data every N minutes while charging**
+(off / 5 / 10 / 15 / 30). The OpenCARWINGS REST API cannot set the server-side periodic refresh, so the integration
+sends the "Refresh data" command itself, only when all of these hold:
+
+- the last known state of the car is *charging* (plugged in alone does not count),
+- no command is pending,
+- N minutes passed since the previous command,
+- the data is not younger than N/2 minutes (something else, such as an automation, just refreshed it).
+
+Start of a charge is still up to you (for example an automation that presses the refresh button when the wallbox
+starts): the integration cannot know that charging began until it has read fresh data once.
 
 ---
 
@@ -119,39 +136,23 @@ The integration obtains JWT tokens (access & refresh) during setup and refreshes
 
 ---
 
-## Reporting issues & Contributing 🤝
-
-Found a bug or want a feature? Please open an issue or a PR at: https://github.com/czapeczek/ha_opencarwings
-
-Contributions, fixes and improvements are welcome!
-
----
-
 ## Thank you 🙏
 
 A big thank you to the OpenCARWINGS project for providing the reverse-engineered API that makes this integration possible: https://github.com/developerfromjokela/opencarwings
 
 <!-- Badges -->
-[releases-shield]: https://img.shields.io/github/v/release/czapeczek/ha_opencarwings?style=for-the-badge
-[releases]: https://github.com/czapeczek/ha_opencarwings/releases
+[releases-shield]: https://img.shields.io/github/v/release/kriskomp/ha_opencarwings?style=for-the-badge
+[releases]: https://github.com/kriskomp/ha_opencarwings/releases
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/czapeczek/ha_opencarwings?style=for-the-badge
-[commits]: https://github.com/czapeczek/ha_opencarwings/commits/main
-
-[license-shield]: https://img.shields.io/github/license/czapeczek/ha_opencarwings?style=for-the-badge
-
-[maintenance-shield]: https://img.shields.io/badge/maintained-yes-green.svg?style=for-the-badge
-
-[buymecoffeebadge]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-yellow.svg?style=for-the-badge
-[buymecoffee]: https://www.buymeacoffee.com/czapeczek
-
-[forum-shield]: https://img.shields.io/badge/community-forum-blue.svg?style=for-the-badge
-[forum]: https://community.home-assistant.io/
 [hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
-[hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=czapeczek&repository=ha_opencarwings&category=Integration
+[hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=kriskomp&repository=ha_opencarwings&category=Integration
 
 ---
 
 ## Credits
 
 The integration icon is the OpenCARWINGS logo from [developerfromjokela/opencarwings](https://github.com/developerfromjokela/opencarwings) (`docs/public/favicon.svg`, GPL-2.0). OpenCARWINGS is an independent project, not affiliated with Nissan.
+
+## License
+
+GPL-2.0, see [LICENSE](LICENSE) (the same license as the [OpenCARWINGS server](https://github.com/developerfromjokela/opencarwings)).

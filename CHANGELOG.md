@@ -5,6 +5,40 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.21.2
+
+- **Skąd wiadomo, że dane pochodzą z auta.** Sensory „Last Updated” i atrybuty `last_connection` / `last_evinfo` /
+  `raw_car` zawsze pokazywały pustkę. Przyczyna: klient API oznacza `ev_info.last_updated`, `last_connection`
+  i `command_request_time` jako pola tylko do odczytu, a `to_dict()` takie pola pomija. Integracja czyta teraz
+  te pola bezpośrednio z modelu. `ev_info.last_updated` ustawia serwer za każdym razem, gdy z auta przyjdzie
+  pakiet z danymi, więc to jest realny wiek danych z auta (nie z pamięci serwera).
+- **Nowe encje (diagnostyczne, na każde auto):**
+  - `Data Age` – minuty od ostatniego pakietu z auta, odświeżane co minutę,
+  - `Data Fresh` (binary_sensor) – włączony, gdy dane nie są starsze niż próg (domyślnie 30 min),
+  - `Command Status` – wynik ostatniej komendy: `waiting` / `success` / `error` / `timeout`, z atrybutem
+    `last_confirmed_refresh` (kiedy auto ostatnio potwierdziło odświeżenie),
+  - `Last Updated` ma teraz klasę `timestamp` (wcześniej tekst ISO lub „unknown”).
+- **Odświeżanie w czasie ładowania** (Konfiguruj → „Pytaj auto o dane co N minut w czasie ładowania”: wyłączone /
+  5 / 10 / 15 / 30 min; domyślnie wyłączone). REST API nie pozwala ustawić `periodic_refresh` po stronie serwera,
+  więc robi to integracja: co N minut wysyła komendę „Refresh data”, ale tylko gdy ostatni znany stan auta to
+  ładowanie, nie ma oczekującej komendy, od poprzedniej minęło N minut, a dane nie są młodsze niż N/2
+  (np. odświeżył je Twój skrypt). Dzięki temu można zrezygnować z własnej pętli odświeżania.
+- **Przyciski i przełącznik A/C** po wysłaniu komendy śledzą ją aż do wyniku (odczyt co 15 s, do 8 min), więc
+  `Command Status` i wiek danych aktualizują się same. Wcześniej aktualizacja kodu po komendzie nigdy się nie
+  wykonywała (porównywano VIN z listą obiektów, a wywoływana metoda nie istnieje).
+- **Opcje integracji działają.** `async_get_options_flow` było funkcją na poziomie modułu, więc Home Assistant
+  nigdy nie pokazywał „Konfiguruj”; token z opcji był zapisywany pod kluczem, którego nikt nie czytał, a wartości
+  wybierane z listy wracały jako tekst (`timedelta(minutes="15")` kończyłoby się błędem). Zmiana opcji przeładowuje
+  integrację. Dodane tłumaczenia (en, pl).
+- **README bez treści właściciela oryginału:** usunięte prośba o wsparcie (BuyMeACoffee), plakietki forum i aktywności,
+  zgłaszanie błędów na jego repozytorium i odwołania do jego konta. Zostaje informacja, że kod pochodzi z
+  developerfromjokela/ha_opencarwings, którego autor stworzył też serwer OpenCARWINGS.
+- **Usunięte pliki Dockera** (`Dockerfile`, `.dockerignore`, `run_tests_in_docker.*`): obraz oparty o Pythona 3.11
+  nie uruchomiłby obecnego kodu (składnia z 3.12) i instalował tylko `pytest`. Testy uruchamia GitHub Actions.
+- **Licencja GPL-2.0** (plik `LICENSE`, ten sam tekst co w serwerze OpenCARWINGS) – walidacja HACS wymaga licencji.
+  Oryginalne repozytorium nie ma żadnej, więc dobrze byłoby potwierdzić to z jego autorem.
+- **Testy:** nowe testy dla wieku danych, wyboru momentu odświeżenia, śledzenia komend, encji, opcji i konfiguracji.
+
 ## 2026.10.21.1
 
 - **Kod zgodny z działającą instalacją.** Do repozytorium trafiły dwie rzeczy, które do tej pory istniały tylko

@@ -1,0 +1,44 @@
+from types import SimpleNamespace
+
+import pytest
+
+from custom_components.ha_opencarwings.config_flow import OpenCARWINGSConfigFlow, OptionsFlowHandler
+
+
+def _handler(options=None, data=None):
+    handler = OptionsFlowHandler()
+    handler.config_entry = SimpleNamespace(
+        options=options or {}, data=data or {"api_token": "tok", "scan_interval": 15}
+    )
+    return handler
+
+
+def test_config_flow_exposes_the_options_flow():
+    assert isinstance(OpenCARWINGSConfigFlow.async_get_options_flow(SimpleNamespace()), OptionsFlowHandler)
+
+
+@pytest.mark.asyncio
+async def test_options_form_defaults_come_from_the_entry():
+    result = await _handler().async_step_init()
+    assert result["type"] == "form"
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert {"api_token", "api_base_url", "scan_interval", "charging_refresh_interval", "data_fresh_minutes"} <= set(keys)
+    assert keys["api_token"].default() == "tok"
+    assert keys["charging_refresh_interval"].default() == "0"
+    assert keys["data_fresh_minutes"].default() == 30
+
+
+@pytest.mark.asyncio
+async def test_options_are_saved_as_integers():
+    result = await _handler().async_step_init({
+        "api_token": "tok2",
+        "api_base_url": "https://x.example",
+        "scan_interval": "5",
+        "charging_refresh_interval": "10",
+        "data_fresh_minutes": "45",
+    })
+    assert result["type"] == "create_entry"
+    assert result["data"]["scan_interval"] == 5
+    assert result["data"]["charging_refresh_interval"] == 10
+    assert result["data"]["data_fresh_minutes"] == 45
+    assert result["data"]["api_token"] == "tok2"
