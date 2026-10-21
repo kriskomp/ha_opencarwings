@@ -1,11 +1,11 @@
 # Zmiany
 
-Numeracja wersji: `X.Y.Z`. Wydanie na GitHubie powstaje automatycznie po zmianie wersji w
+Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia, jak w ha-solaredge-v2). Wydanie na GitHubie powstaje automatycznie po zmianie wersji w
 `custom_components/ha_opencarwings/manifest.json` na gałęzi `main`, a jego opis to odpowiednia sekcja tego pliku.
-Wersja 1.0.0 to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
+Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
-## 1.0.1
+## 2026.10.21.1
 
 - **Kod zgodny z działającą instalacją.** Do repozytorium trafiły dwie rzeczy, które do tej pory istniały tylko
   w Home Assistant autora forka:
