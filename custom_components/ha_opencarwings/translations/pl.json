@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenCARWINGS",
+        "data": {
+          "token": "Token API",
+          "scan_interval": "Interwał odświeżania danych",
+          "api_base_url": "Adres API"
+        }
+      }
+    },
+    "error": {
+      "auth": "Nieprawidłowy token API",
+      "unknown": "Nieoczekiwany błąd"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OpenCARWINGS",
+        "data": {
+          "api_token": "Token API",
+          "api_base_url": "Adres API",
+          "scan_interval": "Interwał odświeżania (odczyt z serwera)",
+          "charging_refresh_interval": "Pytaj auto o dane co N minut w czasie ładowania",
+          "data_fresh_minutes": "Dane są świeże przez (minuty)"
+        },
+        "data_description": {
+          "charging_refresh_interval": "Wysyła komendę „Odśwież dane” tylko gdy ostatni znany stan auta to ładowanie. Domyślnie wyłączone.",
+          "data_fresh_minutes": "Używane przez sensor binarny „Data Fresh”."
+        }
+      }
+    }
+  }
+}

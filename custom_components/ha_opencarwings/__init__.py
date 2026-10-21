@@ -7,10 +7,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 DOMAIN = "ha_opencarwings"
-PLATFORMS = ["sensor", "switch", "device_tracker", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "switch", "device_tracker", "button"]
 
 # default: 15 minutes
 DEFAULT_SCAN_INTERVAL_MIN = 15
+# 0 = off. Minutes between "Refresh data" commands while the car is charging.
+DEFAULT_CHARGING_REFRESH_MIN = 0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,7 +117,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER,
         name=f"{DOMAIN}_{entry.entry_id}",
         update_method=_async_update_data,
-        update_interval=timedelta(minutes=scan_min),
+        update_interval=timedelta(minutes=int(scan_min)),
     )
 
     # store coordinator
@@ -138,6 +140,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Forward setup to platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Periodic "Refresh data" while the car is charging (off by default)
+    charging_min = int(opts.get("charging_refresh_interval", entry.data.get("charging_refresh_interval", DEFAULT_CHARGING_REFRESH_MIN)) or 0)
+    if charging_min > 0:
+        from homeassistant.helpers.event import async_track_time_interval
+        from .charging_refresh import ChargingRefresh
+
+        runner = ChargingRefresh(hass, entry.entry_id, charging_min)
+        hass.data[DOMAIN][entry.entry_id]["charging_refresh"] = runner
+        unsub = async_track_time_interval(hass, runner.async_tick, timedelta(minutes=charging_min))
+        if hasattr(entry, "async_on_unload"):
+            entry.async_on_unload(unsub)
+
+    # Options (scan interval, charging refresh, freshness threshold) apply after a reload
+    if hasattr(entry, "add_update_listener") and hasattr(entry, "async_on_unload"):
+        async def _async_options_updated(hass_: HomeAssistant, updated: ConfigEntry) -> None:
+            await hass_.config_entries.async_reload(updated.entry_id)
+
+        entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # Register integration service to allow manual refresh via service call
     # Register only once per hass instance

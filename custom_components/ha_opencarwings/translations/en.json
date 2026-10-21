@@ -1,0 +1,36 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenCARWINGS",
+        "data": {
+          "token": "API token",
+          "scan_interval": "Update interval",
+          "api_base_url": "API address"
+        }
+      }
+    },
+    "error": {
+      "auth": "Invalid API token",
+      "unknown": "Unexpected error"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OpenCARWINGS",
+        "data": {
+          "api_token": "API token",
+          "api_base_url": "API address",
+          "scan_interval": "Update interval (reads the server)",
+          "charging_refresh_interval": "Ask the car for data every N minutes while charging",
+          "data_fresh_minutes": "Data counts as fresh for (minutes)"
+        },
+        "data_description": {
+          "charging_refresh_interval": "Sends the \"Refresh data\" command only while the car's last known state is charging. Off by default.",
+          "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor."
+        }
+      }
+    }
+  }
+}
