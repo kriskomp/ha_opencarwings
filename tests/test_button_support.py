@@ -62,9 +62,17 @@ def test_button_is_unavailable_when_the_command_is_not_supported():
     assert button_mod.CarHornButton("e1", car_data(_car(FICOSA))).available is True
 
 
-def test_ac_switch_availability():
+def test_ac_switch_availability_depends_only_on_support():
     assert CarACSwitch("e1", car_data(_car(FICOSA))).available is True
     assert CarACSwitch("e1", car_data(_car([1, 2]))).available is False
     pending = make_car(command_requested=True)
     pending.supported_commands = FICOSA
-    assert CarACSwitch("e1", car_data(pending)).available is False
+    assert CarACSwitch("e1", car_data(pending)).available is True  # pending command: not grey
+
+
+def test_ac_switch_follows_the_coordinator_data():
+    coordinator = SimpleNamespace(data=[car_data(_car([1, 2]))])
+    switch = CarACSwitch("e1", coordinator.data[0], coordinator)
+    assert switch.available is False
+    coordinator.data = [car_data(_car(FICOSA))]  # a refresh replaces the objects
+    assert switch.available is True

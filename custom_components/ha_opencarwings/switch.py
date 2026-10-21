@@ -8,6 +8,7 @@ import opencarwings_client
 from opencarwings_client import ApiClient, ApiCommandCreateRequest, CommandResponse
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import DOMAIN
 from .charging_refresh import follow_command, store_car
@@ -19,12 +20,13 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, entry, async_add_entities):
     data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+    coordinator = data.get("coordinator")
     cars: List[CarData] = data.get("cars", [])
 
     entities = []
     for car in cars:
         if car.vin:
-            ent = CarACSwitch(entry.entry_id, car)
+            ent = CarACSwitch(entry.entry_id, car, coordinator)
             # Tests call entity methods directly; set hass here for testability
             ent.hass = hass
             entities.append(ent)
@@ -32,15 +34,24 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(entities)
 
 
-class CarACSwitch(SwitchEntity):
-    """Represents the car A/C as a switch."""
+class CarACSwitch(CoordinatorEntity, SwitchEntity):
+    """Represents the car A/C as a switch. Follows the coordinator, like the other entities."""
 
-    def __init__(self, entry_id: str, car: CarData) -> None:
+    def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
+        CoordinatorEntity.__init__(self, coordinator)
         self._entry_id = entry_id
-        self._car = car
+        self._seed_car = car
         self._vin = car.vin
         # state: True = on, False = off (no real-time state unless refreshed)
         self._is_on = False
+
+    @property
+    def _car(self) -> CarData:
+        # A refresh replaces the CarData objects; never keep the one from setup.
+        for car in getattr(self.coordinator, "data", None) or []:
+            if car.vin == self._vin:
+                return car
+        return self._seed_car
 
     @property
     def name(self) -> str:
@@ -56,11 +67,14 @@ class CarACSwitch(SwitchEntity):
 
     @property
     def available(self) -> bool:
-        """Off-limits while a command is pending or when the car cannot switch the A/C."""
+        """Unavailable only when the car's TCU does not support A/C on/off.
+
+        A pending command does not grey the switch out: a command can stay pending for minutes while
+        the car sleeps, and a switch stuck grey for that long looks broken.
+        """
         car_data = self._car.get_latest_car()
         return (
             car_data is not None
-            and not car_data.command_requested
             and command_supported(car_data, 3)
             and command_supported(car_data, 4)
         )

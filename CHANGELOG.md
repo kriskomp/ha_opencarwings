@@ -5,6 +5,13 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.21.7
+
+- **Przełącznik A/C nie szarzeje bez powodu.** Przełącznik trzymał obiekt auta z chwili uruchomienia i nigdy go nie
+  odświeżał, a w .6 dodatkowo był niedostępny, gdy jakaś komenda była w toku (np. odświeżenie czekające na
+  odpowiedź uśpionego auta). Teraz przełącznik czyta bieżące dane koordynatora (jak pozostałe encje) i jest
+  niedostępny wyłącznie wtedy, gdy auto nie obsługuje A/C (`supported_commands` bez komend 3 i 4).
+
 ## 2026.10.21.6
 
 Poprawki wydania .5 (zostało scalone, zanim te zmiany do niego trafiły).
