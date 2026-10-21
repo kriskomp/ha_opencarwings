@@ -152,3 +152,7 @@ A big thank you to the OpenCARWINGS project for providing the reverse-engineered
 ## Credits
 
 The integration icon is the OpenCARWINGS logo from [developerfromjokela/opencarwings](https://github.com/developerfromjokela/opencarwings) (`docs/public/favicon.svg`, GPL-2.0). OpenCARWINGS is an independent project, not affiliated with Nissan.
+
+## License
+
+GPL-2.0, see [LICENSE](LICENSE) (the same license as the [OpenCARWINGS server](https://github.com/developerfromjokela/opencarwings)).
