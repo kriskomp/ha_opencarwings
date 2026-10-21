@@ -29,12 +29,15 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 
 - **Daty jako natywny `timestamp`.** „Last Requested” zwracał tekst (`2026-10-21T08:59:13.106914Z`), teraz ma klasę
   `timestamp` (HA pokazuje „x minut temu” w czasie lokalnym); przed pierwszym odczytem jest `unknown`, bez błędów
-  konwersji. „Data Age” ma klasę `duration` (minuty). Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
-- **Czasy ładowania (3 kW, 1 kW, 6,6 kW)** miały jednostkę „s”, a serwer podaje minuty (np. 292 = 4 h 52 min);
-  jednostka to teraz `min`.
-- **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Gdy auto stoi w strefie
-  „Dom”, jego znacznik leży kilka metrów od znaczników osób i może być przez nie przykryty; współrzędne są te same
-  co w panelu OpenCARWINGS.
+  konwersji. Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
+- **Czasy jako tekst „4 h 52 min”.** Czasy ładowania (3 kW, 1 kW, 6,6 kW) miały jednostkę „s”, a serwer podaje
+  minuty, więc HA pokazywał np. „17 520,00 s”. „Data Age” pokazywałby przy dłuższym czasie „135 min”. Teraz
+  wszystkie cztery to czytelny tekst (`37 min`, `2 h 30 min`, `1 d 3 h`), a liczba minut jest w atrybucie `minutes`
+  (do automatyzacji; dla „Data Age” jest też `Data Fresh` i atrybut `data_age_minutes` sensora `Status`).
+  Uwaga: te cztery encje nie są już liczbowe (bez jednostki i klasy `duration`).
+- **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Panel „Mapa” HA nie
+  pokazuje żadnej encji o stanie `home`, więc auto stojące w strefie „Dom” widać dopiero na karcie mapy z jawnie
+  wpisanym `device_tracker` (np. `label_mode: icon`); w drodze (`not_home`) pokazuje je też panel „Mapa”.
 - **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
   Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
 

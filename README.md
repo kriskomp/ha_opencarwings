@@ -22,7 +22,7 @@ Per car the integration currently exposes:
   - Charge cable plugged in (plugged / unplugged)
   - High-level status (charging / running / ac_on / idle)
   - **Per-car "Last Updated"** (diagnostic, `timestamp`): when the car last sent a data packet (`ev_info.last_updated`, falling back to `last_connection`). Unique id `ha_opencarwings_last_updated_<VIN>`.
-  - **Per-car "Data Age"** (diagnostic, `duration` in minutes): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
+  - **Per-car "Data Age"** (diagnostic): time since that packet as text (`37 min`, `2 h 30 min`), numeric value in the attribute `minutes`, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
   - **Per-car "Data Fresh"** (binary sensor): on while the data is not older than the threshold set in *Configure* (default 30 min). Unique id `ha_opencarwings_data_fresh_<VIN>`.
   - **Per-car "Push Connection"** (binary sensor, diagnostic): on while the live WebSocket to the server is up; attributes `auth_failed`, `last_error`, `last_message`. Unique id `ha_opencarwings_push_<VIN>`.
   - **Per-car "Command Status"** (diagnostic): result of the last command: `waiting`, `success`, `error` or `timeout`; the attribute `last_confirmed_refresh` tells when the car last answered a refresh command. Unique id `ha_opencarwings_command_status_<VIN>`.
