@@ -11,7 +11,18 @@ class FakeCar(SimpleNamespace):
     """A ``Car`` look-alike. ``to_dict`` drops read-only timestamps, like the real client."""
 
     def to_dict(self):
-        return {"nickname": getattr(self, "nickname", None), "command_requested": self.command_requested}
+        data = {"nickname": getattr(self, "nickname", None), "command_requested": self.command_requested}
+        location = getattr(self, "location", None)
+        if location is not None:
+            data["location"] = location.to_dict()
+        return data
+
+
+class FakeLocation(SimpleNamespace):
+    """A ``LocationInfo`` look-alike; ``to_dict`` drops the read-only ``last_updated``."""
+
+    def to_dict(self):
+        return {"lat": self.lat, "lon": self.lon}
 
 
 def make_car(
@@ -26,6 +37,7 @@ def make_car(
     command_request_time=None,
     nickname="Leaf",
     vin="VIN1",
+    location=None,
 ):
     ev = SimpleNamespace(
         charging=charging,
@@ -44,6 +56,7 @@ def make_car(
         command_result=command_result,
         command_result_display={0: "Success", 1: "Error", 2: "Timeout", -1: "Waiting"}[command_result],
         command_request_time=command_request_time,
+        location=location,
     )
 
 

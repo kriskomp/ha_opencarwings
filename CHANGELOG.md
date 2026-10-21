@@ -25,6 +25,18 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 - Nowa encja diagnostyczna „Push Connection” (binary_sensor) oraz zdarzenie `ha_opencarwings_alert` dla
   komunikatów `alert` z serwera.
 
+## 2026.10.21.4
+
+- **Opcja „Pokazuj auto na mapie (device tracker)”** (Konfiguruj; domyślnie włączona, czyli bez zmiany dla
+  istniejących instalacji). Wyłączona: encja device tracker nie jest tworzona, a istniejąca jest usuwana z
+  rejestru encji przy przeładowaniu; pozycja znika też z atrybutu `raw_car` sensora `Status`. Włączona: auto
+  widać na mapie.
+- **Tracker teraz się porusza.** Trzymał obiekt auta z chwili uruchomienia, a koordynator przy każdym odczycie
+  podmienia obiekty, więc pozycja nigdy się nie aktualizowała. Tracker czyta teraz bieżące dane koordynatora
+  (jak pozostałe encje). Atrybuty trackera mają `last_updated` (czas pozycji, `dd.mm.rrrr gg:mm`); brak pozycji
+  nie powoduje już błędu.
+- **Testy:** opcja (wł./wył., sprzątanie rejestru), śledzenie koordynatora, atrybuty, ukrywanie pozycji w `raw_car`.
+
 ## 2026.10.21.2
 
 - **Skąd wiadomo, że dane pochodzą z auta.** Sensory „Last Updated” i atrybuty `last_connection` / `last_evinfo` /
