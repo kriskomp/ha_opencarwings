@@ -33,6 +33,18 @@ CHARGING_REFRESH_CHOICES = [
     (30, "30 minutes"),
 ]
 DEFAULT_CHARGING_REFRESH_MIN = 0
+# Minutes of silence after which a parked car is asked for data (0 = off)
+IDLE_REFRESH_CHOICES = [
+    (0, "Off"),
+    (360, "6 hours"),
+    (720, "12 hours"),
+    (1440, "1 day"),
+    (2880, "2 days"),
+    (4320, "3 days"),
+    (10080, "1 week"),
+    (20160, "2 weeks"),
+]
+DEFAULT_IDLE_REFRESH_MIN = 0
 DEFAULT_USE_WEBSOCKET = True
 # Data older than this many minutes is reported as not fresh
 DEFAULT_FRESH_MINUTES = 30
@@ -162,7 +174,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         entry = self.config_entry
         if user_input is not None:
             data = dict(user_input)
-            for key in ("scan_interval", "charging_refresh_interval", "data_fresh_minutes"):
+            for key in ("scan_interval", "charging_refresh_interval", "idle_refresh_interval", "data_fresh_minutes"):
                 if key in data:
                     data[key] = int(data[key])
             return self.async_create_entry(title="", data=data)
@@ -185,6 +197,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "charging_refresh_interval",
                     default=str(current("charging_refresh_interval", DEFAULT_CHARGING_REFRESH_MIN)),
                 ): _select(CHARGING_REFRESH_CHOICES),
+                vol.Required(
+                    "idle_refresh_interval",
+                    default=str(current("idle_refresh_interval", DEFAULT_IDLE_REFRESH_MIN)),
+                ): _select(IDLE_REFRESH_CHOICES),
                 vol.Required(
                     "data_fresh_minutes", default=int(current("data_fresh_minutes", DEFAULT_FRESH_MINUTES))
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),

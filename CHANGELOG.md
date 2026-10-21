@@ -7,6 +7,13 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 
 ## 2026.10.21.7
 
+- **Nowa opcja „Sprawdzaj zaparkowane auto co N godzin/dni”** (wyłączona; 6 h, 12 h, 1 dzień, 2, 3 dni, tydzień,
+  2 tygodnie). Zaparkowane auto samo nic nie wysyła, więc integracja po tak długiej ciszy wysyła „Refresh data”
+  (komenda budzi modem auta). Zasady (jak okresowe odświeżanie na serwerze OpenCARWINGS, które API pozwala tylko
+  odczytać): tylko gdy auto milczy cały interwał (brak pakietu danych i połączenia), nie ładuje się ani nie jedzie,
+  nie ma komendy w toku i w ostatnim interwale nie poproszono o żadną komendę. Ostatnia zasada chroni akumulator 12 V:
+  auto, które nie odpowiedziało (timeout, błąd), nie jest budzone ponownie przed upływem pełnego interwału, także po
+  restarcie HA. Sprawdzenie działa co 30 minut na danych, które integracja już ma.
 - **Przełącznik A/C nie szarzeje bez powodu.** Przełącznik trzymał obiekt auta z chwili uruchomienia i nigdy go nie
   odświeżał, a w .6 dodatkowo był niedostępny, gdy jakaś komenda była w toku (np. odświeżenie czekające na
   odpowiedź uśpionego auta). Teraz przełącznik czyta bieżące dane koordynatora (jak pozostałe encje) i jest

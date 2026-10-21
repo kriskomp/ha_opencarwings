@@ -69,6 +69,24 @@ old record. Use these to tell the difference:
 - The attributes of the `Status` sensor also show `last_connection`, `last_evinfo` and `data_age_minutes`
   (dates as `dd.mm.yyyy HH:MM`, local time).
 
+## Checking on a parked car 🅿️
+
+*Configure* → **Check on the parked car every N hours/days** (off / 6 h / 12 h / 1 day / 2 days / 3 days / 1 week /
+2 weeks). A car that is parked sends nothing by itself, so after a few days you would not know what happens to it.
+With this option the integration sends the "Refresh data" command (it wakes the car's modem) when **all** of these hold:
+
+- the car has been silent (no data packet and no connection) for the whole interval,
+- it is neither charging nor driving (those have their own behaviour, see below),
+- no command is pending,
+- no command of any kind was requested within the last interval.
+
+The last rule protects the 12 V battery: a sleeping car that did not answer (timeout or error) is not woken again
+until a full interval has passed, and this also holds across Home Assistant restarts. Every wake-up uses some
+battery, so choose a long interval (1 day or more is plenty for most people). The check itself runs every 30 minutes
+on data the integration already holds and costs nothing. The OpenCARWINGS server has the same feature (car settings,
+*Periodic refresh*) but the API cannot change it, so this option lets you manage it from Home Assistant; using both is
+safe because the rule above looks at the last command.
+
 ## Refresh while charging ⚡
 
 *Settings → Devices & services → OpenCARWINGS → Configure* → **Ask the car for data every N minutes while charging**
@@ -152,6 +170,7 @@ Setup is done in the UI (*Settings → Devices & services → Add integration �
 | Option | Default | What it does |
 | --- | --- | --- |
 | Live updates (WebSocket) | on | Server pushes changes; turn off if your network blocks WebSockets. |
+| Check on the parked car every N hours/days | off | Asks a silent, parked car for data, see *Checking on a parked car* below. |
 | Ask the car for data every N minutes while charging | off | Sends "Refresh data" while the car charges, see [Refresh while charging](#refresh-while-charging-). |
 | Data counts as fresh for (minutes) | 30 | Threshold of the `Data Fresh` binary sensor. |
 | Show the car on the map (device tracker) | on | Off: no tracker entity, and no position in the `Status` attributes. |

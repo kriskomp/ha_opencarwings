@@ -115,3 +115,15 @@ async def test_websocket_slows_polling_while_connected(monkeypatch):
     ws.callbacks["on_state"](False)
     assert coordinator.push_connected is False
     assert coordinator.update_interval == timedelta(minutes=5)
+
+
+@pytest.mark.asyncio
+async def test_idle_refresh_is_off_by_default_and_registers_when_set(monkeypatch):
+    hass, _ = await _setup(monkeypatch, {})
+    assert "idle_refresh" not in hass.data[init_mod.DOMAIN]["e1"]
+
+    hass, entry = await _setup(monkeypatch, {"idle_refresh_interval": 1440})
+    runner = hass.data[init_mod.DOMAIN]["e1"]["idle_refresh"]
+    assert runner.interval_minutes == 1440
+    assert event_stub.CALLS[-1]["interval"] == timedelta(minutes=30)
+    assert event_stub.CALLS[-1]["action"] == runner.async_tick
