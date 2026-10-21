@@ -33,6 +33,17 @@ class DataUpdateCoordinator:
         for listener in list(self._listeners):
             listener()
 
+    async def async_refresh(self):
+        await self.async_request_refresh()
+
+    def async_update_listeners(self):
+        for listener in list(self._listeners):
+            listener()
+
+    def async_set_updated_data(self, data):
+        self.data = data
+        self.async_update_listeners()
+
     async def async_update(self, data=None):
         self.data = data
         for listener in list(self._listeners):

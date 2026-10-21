@@ -24,6 +24,7 @@ Per car the integration currently exposes:
   - **Per-car "Last Updated"** (diagnostic, `timestamp`): when the car last sent a data packet (`ev_info.last_updated`, falling back to `last_connection`). Unique id `ha_opencarwings_last_updated_<VIN>`.
   - **Per-car "Data Age"** (diagnostic): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
   - **Per-car "Data Fresh"** (binary sensor): on while the data is not older than the threshold set in *Configure* (default 30 min). Unique id `ha_opencarwings_data_fresh_<VIN>`.
+  - **Per-car "Push Connection"** (binary sensor, diagnostic): on while the live WebSocket to the server is up; attributes `auth_failed`, `last_error`, `last_message`. Unique id `ha_opencarwings_push_<VIN>`.
   - **Per-car "Command Status"** (diagnostic): result of the last command: `waiting`, `success`, `error` or `timeout`; the attribute `last_confirmed_refresh` tells when the car last answered a refresh command. Unique id `ha_opencarwings_command_status_<VIN>`.
   - **Per-car "Last Requested"** (diagnostic): reports the last time the integration requested data from the API (coordinator's last update time). The sensor is created per VIN and has the unique id pattern `ha_opencarwings_last_requested_<VIN>`.
   - A top-level `OpenCARWINGS Cars` sensor listing your cars and VINs
@@ -33,6 +34,25 @@ Per car the integration currently exposes:
 - Button: **Per-car "Request refresh"** — each car has a per-vehicle button labeled like `Request data refresh for <nickname|model>` (for example, "Request data refresh for MyCar"). Pressing it sends a "Refresh data" command to OpenCARWINGS (unique id: `ha_opencarwings_car_refresh_<VIN>`).
 
 ---
+
+## Live updates (WebSocket)
+
+By default the integration keeps a WebSocket open (`/ws/notif/`) and the server pushes every change (car packet,
+location, command result) as it happens. It uses the same personal API token as REST, so no login or password.
+The option *Live updates (WebSocket)* in *Configure* turns it off.
+
+What this means in practice:
+
+- While the socket is up, the *Update interval* only acts as a slow safety poll (1 hour or your interval, whichever
+  is longer); when it drops, polling returns to your normal interval.
+- The server does not replay missed events, so after **every** (re)connect the whole state is re-read over REST.
+- Dead connections are detected with a 30 s WebSocket heartbeat; reconnects wait 5 s, doubling up to 5 min.
+- If the server rejects the token, the integration stops retrying fast, retries hourly and asks for a new token
+  (re-authentication, no need to delete the integration).
+- A WebSocket cannot make the car send new data: *Refresh data* (button, or *Ask the car for data every N minutes
+  while charging*) is still needed. What changes is that the result arrives immediately instead of being polled
+  (command follow-up polls 4x less often while the socket is up).
+- Server `alert` messages are fired as the event `ha_opencarwings_alert`.
 
 ## Is the data really from the car? ✅
 

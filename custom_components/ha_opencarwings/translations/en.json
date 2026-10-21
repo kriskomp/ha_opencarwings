@@ -8,11 +8,21 @@
           "scan_interval": "Update interval",
           "api_base_url": "API address"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate OpenCARWINGS",
+        "description": "The server rejected the API token. Enter a new one.",
+        "data": {
+          "token": "API token"
+        }
       }
     },
     "error": {
       "auth": "Invalid API token",
       "unknown": "Unexpected error"
+    },
+    "abort": {
+      "reauth_successful": "Token updated"
     }
   },
   "options": {
@@ -24,11 +34,13 @@
           "api_base_url": "API address",
           "scan_interval": "Update interval (reads the server)",
           "charging_refresh_interval": "Ask the car for data every N minutes while charging",
-          "data_fresh_minutes": "Data counts as fresh for (minutes)"
+          "data_fresh_minutes": "Data counts as fresh for (minutes)",
+          "use_websocket": "Live updates (WebSocket)"
         },
         "data_description": {
           "charging_refresh_interval": "Sends the \"Refresh data\" command only while the car's last known state is charging. Off by default.",
-          "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor."
+          "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor.",
+          "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a slow safety poll (1 hour or the interval, whichever is longer). Turn off if your network blocks WebSockets."
         }
       }
     }

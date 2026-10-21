@@ -44,13 +44,16 @@ async def _setup(monkeypatch, options):
         services = Services()
         config_entries = ConfigEntries()
 
+        def async_create_task(self, coro):
+            coro.close()
+
         async def async_add_executor_job(self, func, *args):
             return func(*args)
 
     event_stub.CALLS.clear()
     hass = Hass()
     hass.data = {}
-    entry = _entry(options)
+    entry = _entry({"use_websocket": False, **options})
     assert await init_mod.async_setup_entry(hass, entry) is True
     return hass, entry
 
@@ -76,3 +79,39 @@ async def test_charging_refresh_registers_an_interval(monkeypatch):
 async def test_scan_interval_given_as_a_string_still_works(monkeypatch):
     hass, _ = await _setup(monkeypatch, {"scan_interval": "5"})
     assert hass.data[init_mod.DOMAIN]["e1"]["coordinator"].update_interval == timedelta(minutes=5)
+
+
+@pytest.mark.asyncio
+async def test_websocket_slows_polling_while_connected(monkeypatch):
+    import custom_components.ha_opencarwings.websocket as ws_mod
+    from homeassistant.helpers import aiohttp_client
+
+    created = []
+
+    class FakeWS:
+        connected = False
+
+        def __init__(self, session, base_url, token, **callbacks):
+            self.callbacks = callbacks
+            created.append(self)
+
+        def start(self, create_task=None):
+            pass
+
+        async def stop(self):
+            pass
+
+    monkeypatch.setattr(ws_mod, "OcwWebSocket", FakeWS)
+    monkeypatch.setattr(aiohttp_client, "async_get_clientsession", lambda hass: object())
+    hass, entry = await _setup(monkeypatch, {"use_websocket": True, "scan_interval": 5})
+    coordinator = hass.data[init_mod.DOMAIN]["e1"]["coordinator"]
+    ws = created[0]
+    assert hass.data[init_mod.DOMAIN]["e1"]["websocket"] is ws
+
+    ws.callbacks["on_state"](True)
+    assert coordinator.push_connected is True
+    assert coordinator.update_interval == timedelta(minutes=init_mod.SAFETY_POLL_MIN)
+
+    ws.callbacks["on_state"](False)
+    assert coordinator.push_connected is False
+    assert coordinator.update_interval == timedelta(minutes=5)

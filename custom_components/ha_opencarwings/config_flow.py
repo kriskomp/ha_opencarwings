@@ -33,6 +33,7 @@ CHARGING_REFRESH_CHOICES = [
     (30, "30 minutes"),
 ]
 DEFAULT_CHARGING_REFRESH_MIN = 0
+DEFAULT_USE_WEBSOCKET = True
 # Data older than this many minutes is reported as not fresh
 DEFAULT_FRESH_MINUTES = 30
 # Values used when selector is not available (fallback)
@@ -52,6 +53,36 @@ class OpenCARWINGSConfigFlow(config_entries.ConfigFlow, domain="ha_opencarwings"
     def async_get_options_flow(config_entry):
         """Options flow (shown as "Configure" on the integration)."""
         return OptionsFlowHandler()
+
+    async def async_step_reauth(self, entry_data):
+        """The server rejected the API token: ask for a new one."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None):
+        errors = {}
+        entry = self._get_reauth_entry()
+        if user_input is not None:
+            token = user_input[CONF_TOKEN]
+            base = entry.options.get("api_base_url", entry.data.get("api_base_url", DEFAULT_API_BASE))
+            try:
+                async with await self.hass.async_add_executor_job(get_client, self.hass, base, token) as client:
+                    await opencarwings_client.AccountApi(client).account_detail_list()
+            except ApiException as err:
+                errors["base"] = "auth" if err.status == 401 else "unknown"
+            except Exception:  # noqa: BLE001
+                errors["base"] = "unknown"
+            else:
+                # Options override data, so the new token must replace both.
+                self.hass.config_entries.async_update_entry(
+                    entry,
+                    data={**entry.data, "api_token": token},
+                    options={**entry.options, "api_token": token},
+                )
+                await self.hass.config_entries.async_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
+        return self.async_show_form(
+            step_id="reauth_confirm", data_schema=vol.Schema({vol.Required(CONF_TOKEN): str}), errors=errors
+        )
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step where user provides credentials."""
@@ -147,6 +178,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(
                     "scan_interval", default=str(current("scan_interval", DEFAULT_SCAN_INTERVAL_MIN))
                 ): _select(SCAN_INTERVAL_CHOICES),
+                vol.Required(
+                    "use_websocket", default=bool(current("use_websocket", DEFAULT_USE_WEBSOCKET))
+                ): bool,
                 vol.Required(
                     "charging_refresh_interval",
                     default=str(current("charging_refresh_interval", DEFAULT_CHARGING_REFRESH_MIN)),
