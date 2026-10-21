@@ -11,6 +11,7 @@ from typing import Any, List
 
 from . import DOMAIN
 from .charging_refresh import follow_command, store_car
+from .commands import command_supported
 from .util import CarData
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,27 +24,37 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # Create a single per-entry refresh button
     entities: List[OpenCarwingsButton] = [OpenCarWingsRefreshButton(entry.entry_id, coordinator=coordinator)]
 
-    # Create per-car API refresh buttons for each car
+    # Per-car command buttons, only for commands the car's TCU supports (the API says which)
     cars: List[CarData] = data.get("cars", [])
+    unsupported_ids: list[str] = []
     for car in cars:
-        if car.vin:
-            entities.append(CarRefreshButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarChargeStartButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarChargeStart80Button(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarDoorLockButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarDoorUnLockButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarHornButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarLightsButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarHornAndLightsButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarStopHornAndLightsButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarRemoteStartButton(entry.entry_id, car, coordinator=coordinator))
-            entities.append(CarRemoteStopButton(entry.entry_id, car, coordinator=coordinator))
+        if not car.vin:
+            continue
+        for cls in CAR_BUTTONS:
+            ent = cls(entry.entry_id, car, coordinator=coordinator)
+            if ent.command_supported():
+                entities.append(ent)
+            else:
+                unsupported_ids.append(ent.unique_id)
+    await async_remove_unsupported(hass, entry, unsupported_ids)
 
     # Tests set hass on the entity for direct method calls
     for ent in entities:
         ent.hass = hass
 
     async_add_entities(entities)
+
+async def async_remove_unsupported(hass, entry, unique_ids: list[str]) -> None:
+    """Drop registry entries of buttons the car cannot do (left over from earlier versions)."""
+    if not unique_ids:
+        return
+    from homeassistant.helpers import entity_registry as er
+
+    registry = er.async_get(hass)
+    for entity in list(er.async_entries_for_config_entry(registry, entry.entry_id)):
+        if entity.domain == "button" and getattr(entity, "unique_id", None) in unique_ids:
+            registry.async_remove(entity.entity_id)
+
 
 def hass_client(hass, entry_id: str) -> ApiClient:
     """Helper to get the API client stored in hass.data."""
@@ -75,12 +86,13 @@ class OpenCarWingsCommandButton(OpenCarwingsButton):
         self._command_payload = command_payload
         self._command_pin = command_pin
 
+    def command_supported(self) -> bool:
+        return command_supported(self._car.get_latest_car(), self._command_id)
+
     @property
-    def is_available(self) -> bool:
-        car_instance = self._car.get_latest_car()
-        if car_instance is not None and hasattr(car_instance, "supported_commands"):
-            return self._command_id in car_instance.supported_commands
-        return False
+    def available(self) -> bool:
+        """Home Assistant greys the button out when the car's TCU does not support the command."""
+        return self.command_supported()
 
     async def async_press(self) -> None:
         """Press the button to send a 'Refresh data' command to the API for this car."""
@@ -190,7 +202,7 @@ class CarChargeStart80Button(OpenCarWingsCommandButton):
         return f"ha_opencarwings_car_chargestart80_{self._vin}"
 
 class CarDoorLockButton(OpenCarWingsCommandButton):
-    """Button that sends a 'Charge start 80%' command for a specific car."""
+    """Command 7 = "Door unlock" on the server (the class and unique id keep their old, swapped names)."""
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(7, entry_id, car, coordinator)
@@ -200,13 +212,14 @@ class CarDoorLockButton(OpenCarWingsCommandButton):
         car_instance = self._car.get_latest_car()
         # Friendly label: prefer car nickname, then model name, then VIN
         label = (car_instance.nickname or self._vin) if car_instance is not None else self._vin
-        return f"Lock Doors for {label}"
+        return f"Unlock Doors for {label}"
 
     @property
     def unique_id(self) -> str:
         return f"ha_opencarwings_car_doorlock_{self._vin}"
 
 class CarDoorUnLockButton(OpenCarWingsCommandButton):
+    """Command 8 = "Door lock" on the server."""
 
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         super().__init__(8, entry_id, car, coordinator)
@@ -216,7 +229,7 @@ class CarDoorUnLockButton(OpenCarWingsCommandButton):
         car_instance = self._car.get_latest_car()
         # Friendly label: prefer car nickname, then model name, then VIN
         label = (car_instance.nickname or self._vin) if car_instance is not None else self._vin
-        return f"Unlock Doors for {label}"
+        return f"Lock Doors for {label}"
 
     @property
     def unique_id(self) -> str:
@@ -317,3 +330,17 @@ class CarRemoteStopButton(OpenCarWingsCommandButton):
     @property
     def unique_id(self) -> str:
         return f"ha_opencarwings_car_remote_stop_{self._vin}"
+
+CAR_BUTTONS = [
+    CarRefreshButton,
+    CarChargeStartButton,
+    CarChargeStart80Button,
+    CarDoorLockButton,
+    CarDoorUnLockButton,
+    CarHornButton,
+    CarLightsButton,
+    CarHornAndLightsButton,
+    CarStopHornAndLightsButton,
+    CarRemoteStartButton,
+    CarRemoteStopButton,
+]

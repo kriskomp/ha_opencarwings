@@ -38,8 +38,16 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 - **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Panel „Mapa” HA nie
   pokazuje żadnej encji o stanie `home`, więc auto stojące w strefie „Dom” widać dopiero na karcie mapy z jawnie
   wpisanym `device_tracker` (np. `label_mode: icon`); w drodze (`not_home`) pokazuje je też panel „Mapa”.
-- **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
-  Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
+- **Przyciski pasują do auta.** Sprawdzenie obsługi komend nigdy nie działało (kod ustawiał własną właściwość
+  `is_available`, której HA nie czyta), więc pokazywały się wszystkie przyciski, także te, których auto nie obsługuje.
+  Teraz integracja czyta z API `supported_commands` (zależy od typu TCU): przyciski nieobsługiwanych komend nie są
+  tworzone, a ich stare encje są usuwane z rejestru (Leaf z TCU `ficosa2016` nie ma „Charge start 80%”). Brak listy
+  w odpowiedzi API oznacza „obsługiwane”, nic się wtedy nie chowa. Przełącznik A/C jest niedostępny, gdy komenda
+  trwa albo auto nie obsługuje A/C.
+- **Zamek i odblokowanie miały zamienione nazwy.** Na serwerze komenda 7 to „Door unlock”, a 8 to „Door lock”.
+  Przycisk komendy 8 był opisany „Unlock Doors”. Teraz: komenda 7 = „Unlock Doors”, komenda 8 = „Lock Doors”.
+  `entity_id` i unikalne identyfikatory nie zmieniają się (są historycznie zamienione: `…doorlock…` wysyła
+  odblokowanie), więc sprawdź przyciski w automatyzacjach: nazwa „Unlock Doors” jest teraz przy `…doorlock…`.
 
 ## 2026.10.21.4
 

@@ -32,6 +32,7 @@ Per car the integration currently exposes:
   - **Optional:** *Configure* → **Show the car on the map (device tracker)**. On by default; when switched off no tracker entity exists and the position is also left out of the `Status` sensor attributes (`raw_car`).
 - Switch: A/C control (on/off) — sends commands to the car via the OpenCARWINGS command endpoint
 - Button: **Manual refresh** — a per-integration button is available to force an immediate refresh from the OpenCARWINGS service (unique id: `ha_opencarwings_refresh_<entry_id>`).
+- Buttons for car commands (unlock/lock doors, horn, lights, remote start/stop, charge start) exist only for commands the car's TCU reports in `supported_commands`.
 - Button: **Per-car "Request refresh"** — each car has a per-vehicle button labeled like `Request data refresh for <nickname|model>` (for example, "Request data refresh for MyCar"). Pressing it sends a "Refresh data" command to OpenCARWINGS (unique id: `ha_opencarwings_car_refresh_<VIN>`).
 
 ---

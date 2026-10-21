@@ -35,7 +35,7 @@ def test_data_age_sensor_counts_whole_minutes(monkeypatch):
 
     monkeypatch.setattr(sensor_mod, "data_age_minutes", lambda car: freshness.data_age_minutes(car, NOW))
     car = make_car(last_updated=NOW - timedelta(minutes=42, seconds=30))
-    assert CarDataAgeSensor(_coord(car), "e1", "VIN1").native_value == 42
+    assert CarDataAgeSensor(_coord(car), "e1", "VIN1").native_value == "42 min"
 
 
 def test_command_status_waiting_then_result():
