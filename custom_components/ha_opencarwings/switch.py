@@ -11,6 +11,7 @@ from homeassistant.components.switch import SwitchEntity
 
 from . import DOMAIN
 from .charging_refresh import follow_command, store_car
+from .commands import command_supported
 from .util import CarData
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,9 +55,15 @@ class CarACSwitch(SwitchEntity):
         return self._is_on
 
     @property
-    def is_available(self) -> bool:
+    def available(self) -> bool:
+        """Off-limits while a command is pending or when the car cannot switch the A/C."""
         car_data = self._car.get_latest_car()
-        return car_data is not None and car_data.command_requested == False
+        return (
+            car_data is not None
+            and not car_data.command_requested
+            and command_supported(car_data, 3)
+            and command_supported(car_data, 4)
+        )
 
     @property
     def device_info(self) -> dict[str, Any]:

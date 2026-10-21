@@ -33,6 +33,7 @@ from .freshness import (
     data_age_minutes,
     data_timestamp,
     format_local,
+    format_minutes,
 )
 from .options import track_location_enabled
 from .ticker import track_minute
@@ -137,6 +138,7 @@ class CarSensorSpec:
     transform: Optional[Callable[[Any], Any]] = None
     device_class: Optional[str] = None
     unit_of_measurement: Optional[str] = None
+    as_duration: bool = False  # value is minutes, shown as text like "2 h 30 min"
 
 
 def _to_int(v: Any) -> int | None:
@@ -190,9 +192,9 @@ CAR_SENSORS: list[CarSensorSpec] = [
     CarSensorSpec("car_running", "Running", _ev_getter("car_running")),
     CarSensorSpec("odometer", "Odometer", _ev_getter("", fallback="odometer"), transform=_to_int, unit_of_measurement="km"),
     CarSensorSpec("last_requested_command", "Last Requested Command", _ev_getter("", fallback="command_type_display")),
-    CarSensorSpec("full_chg_time", "3 kW/240 V Charge Time", _ev_getter("full_chg_time"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
-    CarSensorSpec("limit_chg_time", "1 kW/120 V Charge Time", _ev_getter("limit_chg_time"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
-    CarSensorSpec("obc_6kw", "6.6 kW Charge Time", _ev_getter("obc_6kw"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
+    CarSensorSpec("full_chg_time", "3 kW/240 V Charge Time", _ev_getter("full_chg_time"), transform=_to_chgtime, as_duration=True),
+    CarSensorSpec("limit_chg_time", "1 kW/120 V Charge Time", _ev_getter("limit_chg_time"), transform=_to_chgtime, as_duration=True),
+    CarSensorSpec("obc_6kw", "6.6 kW Charge Time", _ev_getter("obc_6kw"), transform=_to_chgtime, as_duration=True),
     CarSensorSpec("obc_6kw_avail", "6.6 kW OBC Exists", _ev_getter("obc_6kw_avail")),
     CarSensorSpec("batt_heater_avail", "Battery Heater Exists", _ev_getter("batt_heater_avail")),
     CarSensorSpec("batt_heater_status", "Battery Heater Active", _ev_getter("batt_heater_status")),
@@ -208,9 +210,9 @@ class CarValueSensor(OpenCarwingsCarEntity, SensorEntity):
         OpenCarwingsCarEntity.__init__(self, coordinator, entry_id, vin, seed_car)
         self._spec = spec
         self._attr_unique_id = f"ha_opencarwings_{spec.key}_{vin}"
-        if spec.device_class:
+        if spec.device_class and not spec.as_duration:
             self._attr_device_class = spec.device_class
-        if spec.unit_of_measurement:
+        if spec.unit_of_measurement and not spec.as_duration:
             self._attr_native_unit_of_measurement = spec.unit_of_measurement
 
     @property
@@ -225,8 +227,19 @@ class CarValueSensor(OpenCarwingsCarEntity, SensorEntity):
         val = self._spec.value(car)
 
         if self._spec.transform:
-            return self._spec.transform(val)
+            val = self._spec.transform(val)
+        if self._spec.as_duration:
+            return format_minutes(val)
         return val
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        if not self._spec.as_duration:
+            return {}
+        val = self._spec.value(self._get_car())
+        if self._spec.transform:
+            val = self._spec.transform(val)
+        return {"minutes": val}
 
 
 # -----------------------------
@@ -390,8 +403,6 @@ class CarDataAgeSensor(OpenCarwingsCarEntity, SensorEntity):
     """Diagnostic: minutes since the car last sent data (updates every minute)."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
-    _attr_device_class = SensorDeviceClass.DURATION
-    _attr_native_unit_of_measurement = "min"
 
     def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
         super().__init__(coordinator, entry_id, vin, seed_car)
@@ -404,14 +415,15 @@ class CarDataAgeSensor(OpenCarwingsCarEntity, SensorEntity):
         return f"{prefix} Data Age"
 
     @property
-    def native_value(self) -> int | None:
-        age = data_age_minutes(self._get_car().get_latest_car())
-        return None if age is None else int(age)
+    def native_value(self) -> str | None:
+        return format_minutes(data_age_minutes(self._get_car().get_latest_car()))
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        ts, source = data_timestamp(self._get_car().get_latest_car())
-        return {"source": source, "last_data_time": format_local(ts)}
+        car = self._get_car().get_latest_car()
+        ts, source = data_timestamp(car)
+        age = data_age_minutes(car)
+        return {"minutes": None if age is None else int(age), "source": source, "last_data_time": format_local(ts)}
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

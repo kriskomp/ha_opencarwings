@@ -144,3 +144,25 @@ def fresh_threshold(entry: Any) -> int:
         return int(options.get("data_fresh_minutes", data.get("data_fresh_minutes", DEFAULT_FRESH_MINUTES)))
     except (TypeError, ValueError):
         return DEFAULT_FRESH_MINUTES
+
+
+def format_minutes(minutes: Any) -> str | None:
+    """Minutes as text: ``37 min``, ``2 h 30 min``, ``1 d 3 h``. None for a missing value."""
+    if minutes is None:
+        return None
+    try:
+        total = int(round(float(minutes)))
+    except (TypeError, ValueError):
+        return None
+    if total < 0:
+        return None
+    days, rest = divmod(total, 1440)
+    hours, mins = divmod(rest, 60)
+    parts = []
+    if days:
+        parts.append(f"{days} d")
+    if hours:
+        parts.append(f"{hours} h")
+    if mins or not parts:
+        parts.append(f"{mins} min")
+    return " ".join(parts)
