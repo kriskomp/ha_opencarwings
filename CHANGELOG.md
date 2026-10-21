@@ -18,3 +18,7 @@ Wersja 1.0.0 to kod z [oryginału developerfromjokela/ha_opencarwings](https://g
 - **Wydania automatyczne:** po zmianie wersji w `manifest.json` na `main` GitHub Actions uruchamia testy
   i publikuje wydanie z opisem z tego pliku (HACS pokaże ją jako aktualizację). Testy (Python 3.14) oraz
   walidacja HACS/hassfest działają przy każdym PR.
+- **Testy:** zestaw odziedziczony z upstreamu nie dawał się uruchomić (pisany pod stary model danych: 39 z 44
+  testów padało, a plik testu konfiguracji nie dawał się nawet zaimportować). Test konfiguracji przepisany pod
+  obecny przepływ z tokenem, resztę przeniesiono do `tests/stale/` (nie jest uruchamiana, zostaje jako materiał
+  referencyjny). Nowe testy powstają razem ze zmianami w kodzie.

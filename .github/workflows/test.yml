@@ -31,11 +31,11 @@ jobs:
       - name: Run the suite
         run: |
           set +e
-          python -W error::SyntaxWarning -m pytest -ra --tb=short -rp -p no:cacheprovider tests/ > pytest.log 2>&1
+          python -W error::SyntaxWarning -m pytest -ra --tb=short -p no:cacheprovider tests/ > pytest.log 2>&1
           code=$?
           cat pytest.log
           if [ $code -ne 0 ]; then
-            msg=$( (grep -E '^(FAILED|ERROR)' pytest.log | sed 's/ - .*//'; tail -n 3 pytest.log) | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            msg=$(tail -c 3500 pytest.log | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
             echo "::error title=pytest output::$msg"
           fi
           exit $code

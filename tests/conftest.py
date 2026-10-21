@@ -10,3 +10,7 @@ if ROOT not in sys.path:
 STUBS = os.path.join(os.path.dirname(__file__), "stubs")
 if STUBS not in sys.path:
     sys.path.insert(0, STUBS)
+
+# tests/stale/ holds the original upstream tests, written for an older dict-based
+# data model; they no longer match the code and are not collected. See tests/stale/README.md.
+collect_ignore_glob = ["stale/*"]
