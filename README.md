@@ -1,30 +1,15 @@
 # OpenCARWINGS Home Assistant Integration
 
 [![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
-
-![Project Maintenance][maintenance-shield]
-[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
-
-[![Community Forum][forum-shield]][forum]
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 > **Fork note.** This is the [kriskomp](https://github.com/kriskomp/ha_opencarwings) fork of
-> [developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings).
+> [developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings),
+> created by developerfromjokela, who is also the author of the OpenCARWINGS server this integration talks to.
 > Changes are listed in [CHANGELOG.md](CHANGELOG.md) and in [Releases](https://github.com/kriskomp/ha_opencarwings/releases):
 > a release is published automatically when the version in `manifest.json` changes on `main`.
 > Install through HACS as a custom repository (category *Integration*).
 
 Nice, lightweight Home Assistant integration that connects to the OpenCARWINGS API to expose your Nissan (or compatible) cars as devices in Home Assistant.
-
----
-
-## Support the project ☕
-
-This is my first integration for HA. If you find it useful I'd really appreciate if you buy me a coffe:
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/czapeczek)
-
 
 ---
 
@@ -151,36 +136,16 @@ The integration obtains JWT tokens (access & refresh) during setup and refreshes
 
 ---
 
-## Reporting issues & Contributing 🤝
-
-Found a bug or want a feature? Please open an issue or a PR at: https://github.com/czapeczek/ha_opencarwings
-
-Contributions, fixes and improvements are welcome!
-
----
-
 ## Thank you 🙏
 
 A big thank you to the OpenCARWINGS project for providing the reverse-engineered API that makes this integration possible: https://github.com/developerfromjokela/opencarwings
 
 <!-- Badges -->
-[releases-shield]: https://img.shields.io/github/v/release/czapeczek/ha_opencarwings?style=for-the-badge
-[releases]: https://github.com/czapeczek/ha_opencarwings/releases
+[releases-shield]: https://img.shields.io/github/v/release/kriskomp/ha_opencarwings?style=for-the-badge
+[releases]: https://github.com/kriskomp/ha_opencarwings/releases
 
-[commits-shield]: https://img.shields.io/github/commit-activity/y/czapeczek/ha_opencarwings?style=for-the-badge
-[commits]: https://github.com/czapeczek/ha_opencarwings/commits/main
-
-[license-shield]: https://img.shields.io/github/license/czapeczek/ha_opencarwings?style=for-the-badge
-
-[maintenance-shield]: https://img.shields.io/badge/maintained-yes-green.svg?style=for-the-badge
-
-[buymecoffeebadge]: https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-yellow.svg?style=for-the-badge
-[buymecoffee]: https://www.buymeacoffee.com/czapeczek
-
-[forum-shield]: https://img.shields.io/badge/community-forum-blue.svg?style=for-the-badge
-[forum]: https://community.home-assistant.io/
 [hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
-[hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=czapeczek&repository=ha_opencarwings&category=Integration
+[hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=kriskomp&repository=ha_opencarwings&category=Integration
 
 ---
 

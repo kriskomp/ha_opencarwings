@@ -30,6 +30,11 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
   nigdy nie pokazywał „Konfiguruj”; token z opcji był zapisywany pod kluczem, którego nikt nie czytał, a wartości
   wybierane z listy wracały jako tekst (`timedelta(minutes="15")` kończyłoby się błędem). Zmiana opcji przeładowuje
   integrację. Dodane tłumaczenia (en, pl).
+- **README bez treści właściciela oryginału:** usunięte prośba o wsparcie (BuyMeACoffee), plakietki forum i aktywności,
+  zgłaszanie błędów na jego repozytorium i odwołania do jego konta. Zostaje informacja, że kod pochodzi z
+  developerfromjokela/ha_opencarwings, którego autor stworzył też serwer OpenCARWINGS.
+- **Usunięte pliki Dockera** (`Dockerfile`, `.dockerignore`, `run_tests_in_docker.*`): obraz oparty o Pythona 3.11
+  nie uruchomiłby obecnego kodu (składnia z 3.12) i instalował tylko `pytest`. Testy uruchamia GitHub Actions.
 - **Testy:** nowe testy dla wieku danych, wyboru momentu odświeżenia, śledzenia komend, encji, opcji i konfiguracji.
 
 ## 2026.10.21.1
