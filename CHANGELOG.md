@@ -27,6 +27,9 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 
 ## 2026.10.21.5
 
+- **README uporządkowany pod nowego użytkownika:** konfiguracja opisuje token API (nie login i hasło), tabela opcji
+  z ustawieniami domyślnymi, usługa i zdarzenie, uwaga o mapie, poprawione wzorce wykluczeń recordera i tabela
+  unikalnych identyfikatorów.
 - **Daty jako natywny `timestamp`.** „Last Requested” zwracał tekst (`2026-10-21T08:59:13.106914Z`), teraz ma klasę
   `timestamp` (HA pokazuje „x minut temu” w czasie lokalnym); przed pierwszym odczytem jest `unknown`, bez błędów
   konwersji. Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
