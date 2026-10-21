@@ -28,6 +28,7 @@ except Exception:  # pragma: no cover
 
 from . import DOMAIN
 from .freshness import (
+    as_datetime,
     command_summary,
     data_age_minutes,
     data_timestamp,
@@ -57,18 +58,6 @@ def _parse_ts(value: str | None):
         return datetime.fromisoformat(value)
     except Exception as e:
         _LOGGER.exception(e)
-        return None
-
-
-def _format_dt(dt: datetime | None) -> str | None:
-    if not dt:
-        return None
-    try:
-        ts = dt.isoformat()
-        if ts.endswith("+00:00"):
-            ts = ts.replace("+00:00", "Z")
-        return ts
-    except Exception:
         return None
 
 
@@ -201,9 +190,9 @@ CAR_SENSORS: list[CarSensorSpec] = [
     CarSensorSpec("car_running", "Running", _ev_getter("car_running")),
     CarSensorSpec("odometer", "Odometer", _ev_getter("", fallback="odometer"), transform=_to_int, unit_of_measurement="km"),
     CarSensorSpec("last_requested_command", "Last Requested Command", _ev_getter("", fallback="command_type_display")),
-    CarSensorSpec("full_chg_time", "3 kW/240 V Charge Time", _ev_getter("full_chg_time"), transform=_to_chgtime, unit_of_measurement="s", device_class=SensorDeviceClass.DURATION),
-    CarSensorSpec("limit_chg_time", "1 kW/120 V Charge Time", _ev_getter("limit_chg_time"), transform=_to_chgtime, unit_of_measurement="s", device_class=SensorDeviceClass.DURATION),
-    CarSensorSpec("obc_6kw", "6.6 kW Charge Time", _ev_getter("obc_6kw"), transform=_to_chgtime, unit_of_measurement="s", device_class=SensorDeviceClass.DURATION),
+    CarSensorSpec("full_chg_time", "3 kW/240 V Charge Time", _ev_getter("full_chg_time"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
+    CarSensorSpec("limit_chg_time", "1 kW/120 V Charge Time", _ev_getter("limit_chg_time"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
+    CarSensorSpec("obc_6kw", "6.6 kW Charge Time", _ev_getter("obc_6kw"), transform=_to_chgtime, unit_of_measurement="min", device_class=SensorDeviceClass.DURATION),
     CarSensorSpec("obc_6kw_avail", "6.6 kW OBC Exists", _ev_getter("obc_6kw_avail")),
     CarSensorSpec("batt_heater_avail", "Battery Heater Exists", _ev_getter("batt_heater_avail")),
     CarSensorSpec("batt_heater_status", "Battery Heater Active", _ev_getter("batt_heater_status")),
@@ -401,6 +390,7 @@ class CarDataAgeSensor(OpenCarwingsCarEntity, SensorEntity):
     """Diagnostic: minutes since the car last sent data (updates every minute)."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.DURATION
     _attr_native_unit_of_measurement = "min"
 
     def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
@@ -467,9 +457,10 @@ class CarCommandStatusSensor(OpenCarwingsCarEntity, SensorEntity):
 
 
 class CarLastRequestedSensor(OpenCarwingsCarEntity, SensorEntity):
-    """Diagnostic: last time the integration requested data from the API."""
+    """Diagnostic: last time the integration read data from the API (a real timestamp)."""
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def __init__(self, coordinator, entry_id: str, vin: str, seed_car: CarData | None = None) -> None:
         super().__init__(coordinator, entry_id, vin, seed_car)
@@ -482,10 +473,9 @@ class CarLastRequestedSensor(OpenCarwingsCarEntity, SensorEntity):
         return f"{prefix} Last Requested"
 
     @property
-    def native_value(self) -> str:
+    def native_value(self):
         coord = self.coordinator
-        dt = getattr(coord, "last_update_time", None) if coord else None
-        return _format_dt(dt) or "unknown"
+        return as_datetime(getattr(coord, "last_update_time", None) if coord else None)
 
 
 # -----------------------------
