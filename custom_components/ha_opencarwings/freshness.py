@@ -123,6 +123,50 @@ def refresh_due(
     return True
 
 
+def is_running(car: Any) -> bool:
+    """True while the car reports that it is driving."""
+    return bool(getattr(getattr(car, "ev_info", None), "car_running", None))
+
+
+def last_contact(car: Any) -> datetime | None:
+    """The newest sign of life from the car: the later of ``ev_info.last_updated`` and ``last_connection``."""
+    if car is None:
+        return None
+    stamps = [
+        as_datetime(getattr(getattr(car, "ev_info", None), "last_updated", None)),
+        as_datetime(getattr(car, "last_connection", None)),
+    ]
+    stamps = [t for t in stamps if t is not None]
+    return max(stamps) if stamps else None
+
+
+def idle_refresh_due(car: Any, *, interval_minutes: int, now: datetime | None = None) -> bool:
+    """Should a parked car be asked for fresh data (a "check on the car" command)?
+
+    Mirrors the server's own periodic refresh and protects the 12 V battery, because every command wakes
+    the car's modem:
+
+    * never while charging or driving (the car reports by itself, charging has its own option),
+    * never while a command is pending,
+    * only when the car has not been heard from for ``interval_minutes``,
+    * and not when any command was requested within the last ``interval_minutes``. That also stops
+      repeated wake-ups of a car that did not answer (timeout/error) and survives a Home Assistant restart.
+    """
+    if interval_minutes <= 0 or car is None:
+        return False
+    if is_charging(car) or is_running(car) or command_pending(car):
+        return False
+    now = now or datetime.now(timezone.utc)
+    limit = interval_minutes * 60
+    heard = last_contact(car)
+    if heard is not None and (now - heard).total_seconds() < limit:
+        return False
+    requested = as_datetime(getattr(car, "command_request_time", None))
+    if requested is not None and (now - requested).total_seconds() < limit:
+        return False
+    return True
+
+
 def format_local(value: datetime | None) -> str | None:
     """Short local format ``dd.mm.yyyy HH:MM`` for attributes and cards."""
     if value is None:

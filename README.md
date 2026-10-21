@@ -30,7 +30,7 @@ Per car the integration currently exposes:
   - A top-level `OpenCARWINGS Cars` sensor listing your cars and VINs
 - Device tracker: car GPS (uses `last_location` / `location` returned by the API). The tracker entity is attached to the same car device as the per-car buttons and shares the car VIN as the device identifier; the tracker entity itself keeps a stable `unique_id` of the form `ha_opencarwings_tracker_<VIN>`.  The visible name uses the car's `nickname` (for example, "MyCar Tracker"). Parked in the Home zone it is not drawn in the Map panel, see [The map](#the-map).
   - **Optional:** *Configure* → **Show the car on the map (device tracker)**. On by default; when switched off no tracker entity exists and the position is also left out of the `Status` sensor attributes (`raw_car`).
-- Switch: A/C control (on/off) — sends commands to the car via the OpenCARWINGS command endpoint
+- Switch: A/C control (on/off) — sends commands to the car via the OpenCARWINGS command endpoint. It is unavailable only when the car's TCU does not support A/C commands; the switch does not show the real A/C state (the API has none), it only sends the command.
 - Button: **Manual refresh** — a per-integration button is available to force an immediate refresh from the OpenCARWINGS service (unique id: `ha_opencarwings_refresh_<entry_id>`).
 - Buttons for car commands (unlock/lock doors, horn, lights, remote start/stop, charge start) exist only for commands the car's TCU reports in `supported_commands`.
 - Button: **Per-car "Request refresh"** — each car has a per-vehicle button labeled like `Request data refresh for <nickname|model>` (for example, "Request data refresh for MyCar"). Pressing it sends a "Refresh data" command to OpenCARWINGS (unique id: `ha_opencarwings_car_refresh_<VIN>`).
@@ -68,6 +68,24 @@ old record. Use these to tell the difference:
   8 min), so these entities update without a script.
 - The attributes of the `Status` sensor also show `last_connection`, `last_evinfo` and `data_age_minutes`
   (dates as `dd.mm.yyyy HH:MM`, local time).
+
+## Checking on a parked car 🅿️
+
+*Configure* → **Check on the parked car every N hours/days** (off / 6 h / 12 h / 1 day / 2 days / 3 days / 1 week /
+2 weeks). A car that is parked sends nothing by itself, so after a few days you would not know what happens to it.
+With this option the integration sends the "Refresh data" command (it wakes the car's modem) when **all** of these hold:
+
+- the car has been silent (no data packet and no connection) for the whole interval,
+- it is neither charging nor driving (those have their own behaviour, see below),
+- no command is pending,
+- no command of any kind was requested within the last interval.
+
+The last rule protects the 12 V battery: a sleeping car that did not answer (timeout or error) is not woken again
+until a full interval has passed, and this also holds across Home Assistant restarts. Every wake-up uses some
+battery, so choose a long interval (1 day or more is plenty for most people). The check itself runs every 30 minutes
+on data the integration already holds and costs nothing. The OpenCARWINGS server has the same feature (car settings,
+*Periodic refresh*) but the API cannot change it, so this option lets you manage it from Home Assistant; using both is
+safe because the rule above looks at the last command.
 
 ## Refresh while charging ⚡
 
@@ -152,6 +170,7 @@ Setup is done in the UI (*Settings → Devices & services → Add integration �
 | Option | Default | What it does |
 | --- | --- | --- |
 | Live updates (WebSocket) | on | Server pushes changes; turn off if your network blocks WebSockets. |
+| Check on the parked car every N hours/days | off | Asks a silent, parked car for data, see *Checking on a parked car* below. |
 | Ask the car for data every N minutes while charging | off | Sends "Refresh data" while the car charges, see [Refresh while charging](#refresh-while-charging-). |
 | Data counts as fresh for (minutes) | 30 | Threshold of the `Data Fresh` binary sensor. |
 | Show the car on the map (device tracker) | on | Off: no tracker entity, and no position in the `Status` attributes. |
