@@ -141,7 +141,7 @@ Choose one of the options below:
 
 Setup is done in the UI (*Settings → Devices & services → Add integration → OpenCARWINGS*). You need:
 
-- **API token**: your personal API key from the OpenCARWINGS web page of your account. No username or password is
+- **API token**: the **API-key** shown on your account page on the OpenCARWINGS website (paste it as the token). No username or password is
   used; the same token is used for REST and for the WebSocket.
 - **Update interval** (default 15 minutes): how often the server is read over REST. While the live WebSocket is up it
   only acts as a slow safety poll, see [Live updates](#live-updates-websocket).
