@@ -181,3 +181,9 @@ A big thank you to the OpenCARWINGS project for providing the reverse-engineered
 [forum]: https://community.home-assistant.io/
 [hacs-repo-badge]: https://my.home-assistant.io/badges/hacs_repository.svg
 [hacs-install]: https://my.home-assistant.io/redirect/hacs_repository/?owner=czapeczek&repository=ha_opencarwings&category=Integration
+
+---
+
+## Credits
+
+The integration icon is the OpenCARWINGS logo from [developerfromjokela/opencarwings](https://github.com/developerfromjokela/opencarwings) (`docs/public/favicon.svg`, GPL-2.0). OpenCARWINGS is an independent project, not affiliated with Nissan.
