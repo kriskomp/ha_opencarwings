@@ -22,11 +22,11 @@ Per car the integration currently exposes:
   - Charge cable plugged in (plugged / unplugged)
   - High-level status (charging / running / ac_on / idle)
   - **Per-car "Last Updated"** (diagnostic, `timestamp`): when the car last sent a data packet (`ev_info.last_updated`, falling back to `last_connection`). Unique id `ha_opencarwings_last_updated_<VIN>`.
-  - **Per-car "Data Age"** (diagnostic): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
+  - **Per-car "Data Age"** (diagnostic, `duration` in minutes): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
   - **Per-car "Data Fresh"** (binary sensor): on while the data is not older than the threshold set in *Configure* (default 30 min). Unique id `ha_opencarwings_data_fresh_<VIN>`.
   - **Per-car "Push Connection"** (binary sensor, diagnostic): on while the live WebSocket to the server is up; attributes `auth_failed`, `last_error`, `last_message`. Unique id `ha_opencarwings_push_<VIN>`.
   - **Per-car "Command Status"** (diagnostic): result of the last command: `waiting`, `success`, `error` or `timeout`; the attribute `last_confirmed_refresh` tells when the car last answered a refresh command. Unique id `ha_opencarwings_command_status_<VIN>`.
-  - **Per-car "Last Requested"** (diagnostic): reports the last time the integration requested data from the API (coordinator's last update time). The sensor is created per VIN and has the unique id pattern `ha_opencarwings_last_requested_<VIN>`.
+  - **Per-car "Last Requested"** (diagnostic): a native `timestamp`: the last time the integration read data from the API (shown by HA as "x minutes ago"). The sensor is created per VIN and has the unique id pattern `ha_opencarwings_last_requested_<VIN>`.
   - A top-level `OpenCARWINGS Cars` sensor listing your cars and VINs
 - Device tracker: car GPS (uses `last_location` / `location` returned by the API). The tracker entity is attached to the same car device as the per-car buttons and shares the car VIN as the device identifier; the tracker entity itself keeps a stable `unique_id` of the form `ha_opencarwings_tracker_<VIN>`. The visible name prefers the car's `nickname` if present, otherwise it falls back to `model_name` (for example, "MyCar Tracker").
   - **Optional:** *Configure* → **Show the car on the map (device tracker)**. On by default; when switched off no tracker entity exists and the position is also left out of the `Status` sensor attributes (`raw_car`).

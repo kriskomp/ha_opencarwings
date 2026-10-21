@@ -200,7 +200,7 @@ class CarDoorLockButton(OpenCarWingsCommandButton):
         car_instance = self._car.get_latest_car()
         # Friendly label: prefer car nickname, then model name, then VIN
         label = (car_instance.nickname or self._vin) if car_instance is not None else self._vin
-        return f"Unlock Doors for {label}"
+        return f"Lock Doors for {label}"
 
     @property
     def unique_id(self) -> str:

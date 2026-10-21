@@ -25,6 +25,19 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 - Nowa encja diagnostyczna „Push Connection” (binary_sensor) oraz zdarzenie `ha_opencarwings_alert` dla
   komunikatów `alert` z serwera.
 
+## 2026.10.21.5
+
+- **Daty jako natywny `timestamp`.** „Last Requested” zwracał tekst (`2026-10-21T08:59:13.106914Z`), teraz ma klasę
+  `timestamp` (HA pokazuje „x minut temu” w czasie lokalnym); przed pierwszym odczytem jest `unknown`, bez błędów
+  konwersji. „Data Age” ma klasę `duration` (minuty). Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
+- **Czasy ładowania (3 kW, 1 kW, 6,6 kW)** miały jednostkę „s”, a serwer podaje minuty (np. 292 = 4 h 52 min);
+  jednostka to teraz `min`.
+- **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Gdy auto stoi w strefie
+  „Dom”, jego znacznik leży kilka metrów od znaczników osób i może być przez nie przykryty; współrzędne są te same
+  co w panelu OpenCARWINGS.
+- **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
+  Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
+
 ## 2026.10.21.4
 
 - **Opcja „Pokazuj auto na mapie (device tracker)”** (Konfiguruj; domyślnie włączona, czyli bez zmiany dla

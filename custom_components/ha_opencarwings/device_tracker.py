@@ -59,6 +59,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class CarTracker(CoordinatorEntity, TrackerEntity):
     """GPS position of the car. Follows the coordinator, so it moves when the data does."""
 
+    _attr_icon = "mdi:car"
+
     def __init__(self, entry_id: str, car: CarData, coordinator=None) -> None:
         CoordinatorEntity.__init__(self, coordinator)
         self._entry_id = entry_id
