@@ -1,0 +1,48 @@
+# Publishes a GitHub Release when the version in manifest.json changes on main.
+# The tag is v<version> and the notes are the matching section of CHANGELOG.md.
+# HACS shows that version and those notes as the update.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [custom_components/ha_opencarwings/manifest.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read the version
+        id: version
+        run: |
+          version=$(python3 -c 'import json; print(json.load(open("custom_components/ha_opencarwings/manifest.json"))["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Skip when this version is already released
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Release v${{ steps.version.outputs.version }} already exists"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Notes from CHANGELOG.md
+        if: steps.exists.outputs.exists != 'true'
+        run: |
+          python3 scripts/changelog_section.py "${{ steps.version.outputs.version }}" > notes.md
+      - name: Publish the release
+        if: steps.exists.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          gh release create "v$v" --target "$GITHUB_SHA" --title "v$v" --notes-file notes.md --latest
