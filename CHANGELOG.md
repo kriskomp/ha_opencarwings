@@ -32,6 +32,9 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
   konwersji. „Data Age” ma klasę `duration` (minuty). Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
 - **Czasy ładowania (3 kW, 1 kW, 6,6 kW)** miały jednostkę „s”, a serwer podaje minuty (np. 292 = 4 h 52 min);
   jednostka to teraz `min`.
+- **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Gdy auto stoi w strefie
+  „Dom”, jego znacznik leży kilka metrów od znaczników osób i może być przez nie przykryty; współrzędne są te same
+  co w panelu OpenCARWINGS.
 - **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
   Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
 

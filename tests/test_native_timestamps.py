@@ -38,3 +38,9 @@ def test_lock_and_unlock_buttons_have_distinct_names():
     car = car_data(make_car())
     assert CarDoorLockButton("e1", car).name == "Lock Doors for Leaf"
     assert CarDoorUnLockButton("e1", car).name == "Unlock Doors for Leaf"
+
+
+def test_tracker_has_a_car_icon():
+    from custom_components.ha_opencarwings.device_tracker import CarTracker
+
+    assert CarTracker._attr_icon == "mdi:car"
