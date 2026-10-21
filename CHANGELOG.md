@@ -5,6 +5,55 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.21.6
+
+Poprawki wydania .5 (zostało scalone, zanim te zmiany do niego trafiły).
+
+- **Ważne: zamek i odblokowanie miały zamienione nazwy.** Na serwerze komenda 7 to „Door unlock”, a 8 to „Door lock”.
+  W .5 przycisk komendy 7 nazywał się „Lock Doors” i w rzeczywistości odblokowywał auto. Teraz: komenda 7 =
+  „Unlock Doors”, komenda 8 = „Lock Doors”. `entity_id` i unikalne identyfikatory się nie zmieniają (są historycznie
+  zamienione: `…doorlock…` wysyła odblokowanie).
+- **Czasy jako tekst „4 h 52 min”** (3 kW, 1 kW, 6,6 kW i „Data Age”) zamiast liczb z jednostką: HA miał zapamiętaną
+  jednostkę „s” i pokazywał np. „17 520,00 s”, a serwer podaje minuty. Liczba minut jest w atrybucie `minutes`.
+  Te cztery encje nie są już liczbowe (bez jednostki i klasy `duration`).
+- **Przyciski pasują do auta.** Sprawdzenie obsługi komend nigdy nie działało (kod ustawiał własną właściwość
+  `is_available`, której HA nie czyta), więc pokazywały się wszystkie przyciski. Teraz integracja czyta z API
+  `supported_commands` (zależy od typu TCU): przyciski nieobsługiwanych komend nie są tworzone, a ich stare encje są
+  usuwane z rejestru (Leaf z TCU `ficosa2016` nie ma „Charge start 80%”). Brak listy w odpowiedzi API oznacza
+  „obsługiwane”. Przełącznik A/C jest niedostępny, gdy komenda trwa albo auto nie obsługuje A/C.
+- **Mapa:** panel „Mapa” HA nie pokazuje encji w stanie `home`, więc auto stojące w strefie „Dom” widać dopiero na
+  karcie mapy z jawnie wpisanym trackerem (`label_mode: icon`); w drodze pokazuje je też panel „Mapa”. Poprawiony
+  błędny opis z .5 („znacznik przykryty przez osoby”).
+- **README uporządkowany pod nowego użytkownika:** konfiguracja opisuje token API (pole „API-key” na stronie
+  OpenCARWINGS), tabela opcji z ustawieniami domyślnymi, usługa i zdarzenie, uwaga o mapie, poprawione wzorce
+  wykluczeń recordera i tabela unikalnych identyfikatorów.
+
+## 2026.10.21.5
+
+- **Daty jako natywny `timestamp`.** „Last Requested” zwracał tekst (`2026-10-21T08:59:13.106914Z`), teraz ma klasę
+  `timestamp` (HA pokazuje „x minut temu” w czasie lokalnym); przed pierwszym odczytem jest `unknown`, bez błędów
+  konwersji. „Data Age” ma klasę `duration` (minuty). Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
+- **Czasy ładowania (3 kW, 1 kW, 6,6 kW)** miały jednostkę „s”, a serwer podaje minuty (np. 292 = 4 h 52 min);
+  jednostka to teraz `min`.
+- **Tracker auta ma ikonę `mdi:car`** (opis przykrycia znacznika jest błędny, patrz .6), żeby na mapie dało się go odróżnić od osób. Gdy auto stoi w strefie
+  „Dom”, jego znacznik leży kilka metrów od znaczników osób i może być przez nie przykryty; współrzędne są te same
+  co w panelu OpenCARWINGS.
+- **(błędne, poprawione w .6)** **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
+  Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
+
+## 2026.10.21.4
+
+- **Opcja „Pokazuj auto na mapie (device tracker)”** (Konfiguruj; domyślnie włączona, czyli bez zmiany dla
+  istniejących instalacji). Wyłączona: encja device tracker nie jest tworzona, a istniejąca jest usuwana z
+  rejestru encji przy przeładowaniu; pozycja znika też z atrybutu `raw_car` sensora `Status`. Włączona: auto
+  widać na mapie.
+- **Tracker teraz się porusza.** Trzymał obiekt auta z chwili uruchomienia, a koordynator przy każdym odczycie
+  podmienia obiekty, więc pozycja nigdy się nie aktualizowała. Tracker czyta teraz bieżące dane koordynatora
+  (jak pozostałe encje). Atrybuty trackera mają `last_updated` (czas pozycji, `dd.mm.rrrr gg:mm`); brak pozycji
+  nie powoduje już błędu.
+- Razem z WebSocket (2026.10.21.3) pozycja na mapie zmienia się od razu po zdarzeniu `location` z serwera.
+- **Testy:** opcja (wł./wył., sprzątanie rejestru), śledzenie koordynatora, atrybuty, ukrywanie pozycji w `raw_car`.
+
 ## 2026.10.21.3
 
 - **Aktualizacje na żywo przez WebSocket** (`/ws/notif/`, ten sam token API co w REST, bez loginu i hasła).
@@ -24,32 +73,6 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
 - Z README usunięta pozycja „Implement WebSockets client” z listy To-Do (zrobione).
 - Nowa encja diagnostyczna „Push Connection” (binary_sensor) oraz zdarzenie `ha_opencarwings_alert` dla
   komunikatów `alert` z serwera.
-
-## 2026.10.21.5
-
-- **Daty jako natywny `timestamp`.** „Last Requested” zwracał tekst (`2026-10-21T08:59:13.106914Z`), teraz ma klasę
-  `timestamp` (HA pokazuje „x minut temu” w czasie lokalnym); przed pierwszym odczytem jest `unknown`, bez błędów
-  konwersji. „Data Age” ma klasę `duration` (minuty). Atrybuty tekstowe z datami zostają w formacie `dd.mm.rrrr gg:mm`.
-- **Czasy ładowania (3 kW, 1 kW, 6,6 kW)** miały jednostkę „s”, a serwer podaje minuty (np. 292 = 4 h 52 min);
-  jednostka to teraz `min`.
-- **Tracker auta ma ikonę `mdi:car`**, żeby na mapie dało się go odróżnić od osób. Gdy auto stoi w strefie
-  „Dom”, jego znacznik leży kilka metrów od znaczników osób i może być przez nie przykryty; współrzędne są te same
-  co w panelu OpenCARWINGS.
-- **Przycisk „Lock Doors”** (komenda 7) nazywał się „Unlock Doors”, tak samo jak przycisk odblokowania.
-  Nazwa jest poprawiona; istniejące encje zachowują swoje `entity_id`, więc nic nie trzeba kasować.
-
-## 2026.10.21.4
-
-- **Opcja „Pokazuj auto na mapie (device tracker)”** (Konfiguruj; domyślnie włączona, czyli bez zmiany dla
-  istniejących instalacji). Wyłączona: encja device tracker nie jest tworzona, a istniejąca jest usuwana z
-  rejestru encji przy przeładowaniu; pozycja znika też z atrybutu `raw_car` sensora `Status`. Włączona: auto
-  widać na mapie.
-- **Tracker teraz się porusza.** Trzymał obiekt auta z chwili uruchomienia, a koordynator przy każdym odczycie
-  podmienia obiekty, więc pozycja nigdy się nie aktualizowała. Tracker czyta teraz bieżące dane koordynatora
-  (jak pozostałe encje). Atrybuty trackera mają `last_updated` (czas pozycji, `dd.mm.rrrr gg:mm`); brak pozycji
-  nie powoduje już błędu.
-- Razem z WebSocket (2026.10.21.3) pozycja na mapie zmienia się od razu po zdarzeniu `location` z serwera.
-- **Testy:** opcja (wł./wył., sprzątanie rejestru), śledzenie koordynatora, atrybuty, ukrywanie pozycji w `raw_car`.
 
 ## 2026.10.21.2
 

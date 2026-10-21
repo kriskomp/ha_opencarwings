@@ -20,9 +20,10 @@ def reset():
     REGISTRY.removed = []
 
 
-def add(entity_id, config_entry_id):
+def add(entity_id, config_entry_id, unique_id=None):
     REGISTRY.entities.append(
-        SimpleNamespace(entity_id=entity_id, domain=entity_id.split(".")[0], config_entry_id=config_entry_id)
+        SimpleNamespace(entity_id=entity_id, domain=entity_id.split(".")[0], config_entry_id=config_entry_id,
+                        unique_id=unique_id)
     )
 
 

@@ -22,16 +22,17 @@ Per car the integration currently exposes:
   - Charge cable plugged in (plugged / unplugged)
   - High-level status (charging / running / ac_on / idle)
   - **Per-car "Last Updated"** (diagnostic, `timestamp`): when the car last sent a data packet (`ev_info.last_updated`, falling back to `last_connection`). Unique id `ha_opencarwings_last_updated_<VIN>`.
-  - **Per-car "Data Age"** (diagnostic, `duration` in minutes): minutes since that packet, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
+  - **Per-car "Data Age"** (diagnostic): time since that packet as text (`37 min`, `2 h 30 min`), numeric value in the attribute `minutes`, refreshed every minute. Unique id `ha_opencarwings_data_age_<VIN>`.
   - **Per-car "Data Fresh"** (binary sensor): on while the data is not older than the threshold set in *Configure* (default 30 min). Unique id `ha_opencarwings_data_fresh_<VIN>`.
   - **Per-car "Push Connection"** (binary sensor, diagnostic): on while the live WebSocket to the server is up; attributes `auth_failed`, `last_error`, `last_message`. Unique id `ha_opencarwings_push_<VIN>`.
   - **Per-car "Command Status"** (diagnostic): result of the last command: `waiting`, `success`, `error` or `timeout`; the attribute `last_confirmed_refresh` tells when the car last answered a refresh command. Unique id `ha_opencarwings_command_status_<VIN>`.
   - **Per-car "Last Requested"** (diagnostic): a native `timestamp`: the last time the integration read data from the API (shown by HA as "x minutes ago"). The sensor is created per VIN and has the unique id pattern `ha_opencarwings_last_requested_<VIN>`.
   - A top-level `OpenCARWINGS Cars` sensor listing your cars and VINs
-- Device tracker: car GPS (uses `last_location` / `location` returned by the API). The tracker entity is attached to the same car device as the per-car buttons and shares the car VIN as the device identifier; the tracker entity itself keeps a stable `unique_id` of the form `ha_opencarwings_tracker_<VIN>`. The visible name prefers the car's `nickname` if present, otherwise it falls back to `model_name` (for example, "MyCar Tracker").
+- Device tracker: car GPS (uses `last_location` / `location` returned by the API). The tracker entity is attached to the same car device as the per-car buttons and shares the car VIN as the device identifier; the tracker entity itself keeps a stable `unique_id` of the form `ha_opencarwings_tracker_<VIN>`.  The visible name uses the car's `nickname` (for example, "MyCar Tracker"). Parked in the Home zone it is not drawn in the Map panel, see [The map](#the-map).
   - **Optional:** *Configure* → **Show the car on the map (device tracker)**. On by default; when switched off no tracker entity exists and the position is also left out of the `Status` sensor attributes (`raw_car`).
 - Switch: A/C control (on/off) — sends commands to the car via the OpenCARWINGS command endpoint
 - Button: **Manual refresh** — a per-integration button is available to force an immediate refresh from the OpenCARWINGS service (unique id: `ha_opencarwings_refresh_<entry_id>`).
+- Buttons for car commands (unlock/lock doors, horn, lights, remote start/stop, charge start) exist only for commands the car's TCU reports in `supported_commands`.
 - Button: **Per-car "Request refresh"** — each car has a per-vehicle button labeled like `Request data refresh for <nickname|model>` (for example, "Request data refresh for MyCar"). Pressing it sends a "Refresh data" command to OpenCARWINGS (unique id: `ha_opencarwings_car_refresh_<VIN>`).
 
 ---
@@ -86,34 +87,38 @@ starts): the integration cannot know that charging began until it has read fresh
 
 ## History & Recorder ⚠️
 
-The per-car **Last Updated** sensors are marked as diagnostic (they're metadata, not a regularly changing state) and are typically not recorded by Home Assistant's Recorder. If you want to ensure these sensors are excluded from history/recorder, add an exclusion to your `configuration.yaml`:
+The diagnostic sensors (`Last Updated`, `Last Requested`, `Data Age`) are metadata. If you do not want them in the
+database and in history charts, exclude them in `configuration.yaml` (match your own entity ids):
 
 ```yaml
 recorder:
   exclude:
     entity_globs:
-      - "sensor.ha_opencarwings_last_updated_*"
-      - "sensor.ha_opencarwings_last_requested_*"
+      - "sensor.*_last_updated"
+      - "sensor.*_last_requested"
+      - "sensor.*_data_age"
 ```
-
-This will prevent per-car `Last Updated` sensors from being stored in your database and showing up in history charts.
 
 ---
 
 ## Entity names & unique IDs 🔎
 
-A few helpful naming/ID patterns to identify entities created by the integration:
+Entities are created per VIN and are grouped under one device per car. Visible names use the car's `nickname`
+(for example `Leaf Data Age`). Stable unique IDs, useful for automations:
 
-- Device tracker name: uses `nickname` when available, otherwise `model_name`. Visible name example: `MyCar Tracker`.
-- Tracker unique_id: `ha_opencarwings_tracker_<VIN>`
-- Tracker device identifier: `tracker_<VIN>` (the tracker appears as a separate device; the entity unique id above still applies)
-- Per-car "Last Updated" sensor: `ha_opencarwings_last_updated_<VIN>`
-- Car refresh button label: `Request data refresh for <nickname|model>` (visible name) — unique id: `ha_opencarwings_car_refresh_<VIN>`
-- A/C switch: `ha_opencarwings_ac_<VIN>`
+| Entity | Unique ID |
+| --- | --- |
+| Device tracker | `ha_opencarwings_tracker_<VIN>` |
+| Status / Last Updated / Data Age / Command Status / Last Requested | `ha_opencarwings_status_<VIN>`, `…_last_updated_<VIN>`, `…_data_age_<VIN>`, `…_command_status_<VIN>`, `…_last_requested_<VIN>` |
+| Data Fresh / Push Connection (binary sensors) | `ha_opencarwings_data_fresh_<VIN>`, `ha_opencarwings_push_<VIN>` |
+| A/C switch | `ha_opencarwings_ac_<VIN>` |
+| Request data refresh button | `ha_opencarwings_car_refresh_<VIN>` |
 
-These stable IDs are useful when excluding entities from the recorder or when writing automations targeting specific cars.
+Door buttons: command 7 (*Unlock Doors*) has the id `…_car_doorlock_<VIN>` and command 8 (*Lock Doors*) has
+`…_car_doorunlock_<VIN>`. The ids are historical and kept stable so existing entities do not change.
 
-These entities are created per-VIN and appear as devices in the Integrations UI.
+Charge-time sensors (3 kW, 1 kW, 6.6 kW) and `Data Age` show readable text (`4 h 52 min`); the number of minutes is in
+the attribute `minutes`.
 
 ---
 
@@ -124,7 +129,7 @@ Choose one of the options below:
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.][hacs-repo-badge]][hacs-install]
 
 1. HACS (recommended)
-   - In HACS: Integrations → three dots → Custom repositories → Add this repository as category "Integration" → Install → Restart Home Assistant
+   - In HACS: Integrations → three dots → Custom repositories → Add this repository as category "Integration" → Install → Restart Home Assistant, then add the integration as described under *Configuration* below
 2. Manual
    - Copy the `custom_components/ha_opencarwings` directory into `<config>/custom_components/` on your Home Assistant host
    - Restart Home Assistant
@@ -134,13 +139,43 @@ Choose one of the options below:
 
 ## Configuration ⚙️
 
-Setup is done via the UI. You will need:
+Setup is done in the UI (*Settings → Devices & services → Add integration → OpenCARWINGS*). You need:
 
-- **Username** and **Password** for your OpenCARWINGS account
-- **Scan interval** (polling frequency, default: 15 minutes). The setup and options flows present a friendly select with labeled choices (for example: "1 minute", "15 minutes (default)", "1 hour", "1 day").
-- **API base URL** (optional — defaults to the known OpenCARWINGS endpoint)
+- **API token**: the **API-key** shown on your account page on the OpenCARWINGS website (paste it as the token). No username or password is
+  used; the same token is used for REST and for the WebSocket.
+- **Update interval** (default 15 minutes): how often the server is read over REST. While the live WebSocket is up it
+  only acts as a slow safety poll, see [Live updates](#live-updates-websocket).
+- **API address** (optional, defaults to `https://opencarwings.viaaq.eu`): change it if you run your own server.
 
-The integration obtains JWT tokens (access & refresh) during setup and refreshes tokens automatically.
+*Settings → Devices & services → OpenCARWINGS → Configure* has all of the above plus:
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| Live updates (WebSocket) | on | Server pushes changes; turn off if your network blocks WebSockets. |
+| Ask the car for data every N minutes while charging | off | Sends "Refresh data" while the car charges, see [Refresh while charging](#refresh-while-charging-). |
+| Data counts as fresh for (minutes) | 30 | Threshold of the `Data Fresh` binary sensor. |
+| Show the car on the map (device tracker) | on | Off: no tracker entity, and no position in the `Status` attributes. |
+
+Changing an option reloads the integration. If the server rejects the token, Home Assistant asks for a new one
+(re-authentication) instead of failing silently.
+
+### Services and events
+
+- Service `ha_opencarwings.refresh` (optional `entry_id`): reads the server now (it does not ask the car for data; use the
+  *Request data refresh* button for that).
+- Event `ha_opencarwings_alert`: fired for `alert` messages pushed by the server (needs the WebSocket).
+
+### The map
+
+Home Assistant's **Map** panel does not show entities whose state is `home`, so a car parked in the *Home* zone is not
+drawn there (your phones behave the same way). While driving (`not_home`) it appears. To see it always, add a map card:
+
+```yaml
+type: map
+entities:
+  - entity: device_tracker.<your_car>_tracker
+    label_mode: icon
+```
 
 ---
 
