@@ -150,12 +150,6 @@ The integration obtains JWT tokens (access & refresh) during setup and refreshes
 
 ---
 
-## To-Do list
-
-- [ ] Implement WebSockets client, to receive real-time updates
-
----
-
 ## Thank you 🙏
 
 A big thank you to the OpenCARWINGS project for providing the reverse-engineered API that makes this integration possible: https://github.com/developerfromjokela/opencarwings

@@ -21,6 +21,7 @@ Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału develop
     i prośba o nowy token (nowy krok *reauth*),
   - WebSocket nie wymusza nowych danych → komenda „Refresh data” nadal potrzebna; jej wynik przychodzi
     od razu, a śledzenie komendy odpytuje 4x rzadziej, gdy socket działa.
+- Z README usunięta pozycja „Implement WebSockets client” z listy To-Do (zrobione).
 - Nowa encja diagnostyczna „Push Connection” (binary_sensor) oraz zdarzenie `ha_opencarwings_alert` dla
   komunikatów `alert` z serwera.
 
