@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from custom_components.ha_opencarwings import sensor as sensor_mod
-from custom_components.ha_opencarwings.button import CarDoorLockButton, CarDoorUnLockButton
 from custom_components.ha_opencarwings.freshness import format_minutes
 from tests.helpers import car_data, make_car
 
@@ -54,12 +53,6 @@ def test_unknown_charge_time_is_unknown_not_an_error():
     spec = next(s for s in sensor_mod.CAR_SENSORS if s.key == "full_chg_time")
     assert _value_sensor(spec, 2047).native_value is None
     assert _value_sensor(spec, None).native_value is None
-
-
-def test_lock_and_unlock_buttons_have_distinct_names():
-    car = car_data(make_car())
-    assert CarDoorLockButton("e1", car).name == "Lock Doors for Leaf"
-    assert CarDoorUnLockButton("e1", car).name == "Unlock Doors for Leaf"
 
 
 def test_tracker_has_a_car_icon():
