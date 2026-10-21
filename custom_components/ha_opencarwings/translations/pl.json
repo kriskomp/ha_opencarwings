@@ -59,8 +59,7 @@
             "description": "Połączenie na żywo z OpenCARWINGS nie działa od ponad 10 minut. Dane nadal są okresowo odczytywane z serwera, ale zmiany docierają z opóźnieniem. Wybierz Wyślij, aby połączyć ponownie teraz."
           }
         }
-      },
-      "description": "Połączenie na żywo (WebSocket) z OpenCARWINGS nie działa od ponad 10 minut."
+      }
     }
   }
 }

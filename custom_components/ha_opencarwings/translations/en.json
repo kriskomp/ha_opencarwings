@@ -59,8 +59,7 @@
             "description": "The live connection to OpenCARWINGS has been down for more than 10 minutes. Data is still read from the server periodically, but changes arrive late. Select Submit to reconnect now."
           }
         }
-      },
-      "description": "The live (WebSocket) connection to OpenCARWINGS has been down for more than 10 minutes."
+      }
     }
   }
 }
