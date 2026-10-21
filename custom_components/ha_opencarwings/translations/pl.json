@@ -42,11 +42,25 @@
         "data_description": {
           "charging_refresh_interval": "Wysyła komendę „Odśwież dane” tylko gdy ostatni znany stan auta to ładowanie. Domyślnie wyłączone.",
           "data_fresh_minutes": "Używane przez sensor binarny „Data Fresh”.",
-          "use_websocket": "Serwer przesyła zmiany od razu. Interwał odczytu działa wtedy tylko jako wolna siatka bezpieczeństwa (1 godzina lub interwał, zależnie co dłuższe). Wyłącz, jeśli sieć blokuje WebSocket.",
+          "use_websocket": "Serwer przesyła zmiany od razu. Interwał odczytu działa wtedy tylko jako zapasowy odczyt na wypadek, gdyby połączenie na żywo przestało działać (30 minut lub interwał, zależnie co dłuższe). Wyłącz, jeśli sieć blokuje WebSocket.",
           "track_location": "Włączone: encja device tracker pokazuje auto na mapie. Wyłączone: tracker nie jest tworzony, a pozycja jest pomijana w atrybutach sensora Status.",
           "idle_refresh_interval": "Wysyła „Odśwież dane” do auta, gdy milczy tak długo i nie ładuje się ani nie jedzie. Każda komenda budzi modem auta (akumulator 12 V), więc ustaw długi interwał; po braku odpowiedzi czeka pełny interwał przed kolejną próbą. Domyślnie wyłączone."
         }
       }
+    }
+  },
+  "issues": {
+    "push_disconnected": {
+      "title": "Aktualizacje na żywo są rozłączone",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Połącz ponownie aktualizacje na żywo",
+            "description": "Połączenie na żywo z OpenCARWINGS nie działa od ponad 10 minut. Dane nadal są okresowo odczytywane z serwera, ale zmiany docierają z opóźnieniem. Wybierz Wyślij, aby połączyć ponownie teraz."
+          }
+        }
+      },
+      "description": "Połączenie na żywo (WebSocket) z OpenCARWINGS nie działa od ponad 10 minut."
     }
   }
 }

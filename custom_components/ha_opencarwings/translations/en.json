@@ -42,11 +42,25 @@
         "data_description": {
           "charging_refresh_interval": "Sends the \"Refresh data\" command only while the car's last known state is charging. Off by default.",
           "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor.",
-          "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a slow safety poll (1 hour or the interval, whichever is longer). Turn off if your network blocks WebSockets.",
+          "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a backup read in case the live connection stops working (30 minutes or the interval, whichever is longer). Turn off if your network blocks WebSockets.",
           "track_location": "On: a device tracker entity shows the car on the map. Off: no tracker is created and the position is left out of the Status sensor attributes.",
           "idle_refresh_interval": "Sends \"Refresh data\" to the car when it has been silent this long and is neither charging nor driving. Each command wakes the car's modem (12 V battery), so use a long interval; after a timeout it waits a full interval before trying again. Off by default."
         }
       }
+    }
+  },
+  "issues": {
+    "push_disconnected": {
+      "title": "Live updates are disconnected",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reconnect live updates",
+            "description": "The live connection to OpenCARWINGS has been down for more than 10 minutes. Data is still read from the server periodically, but changes arrive late. Select Submit to reconnect now."
+          }
+        }
+      },
+      "description": "The live (WebSocket) connection to OpenCARWINGS has been down for more than 10 minutes."
     }
   }
 }

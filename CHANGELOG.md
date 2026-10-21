@@ -5,6 +5,29 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.21.8
+
+Porządki po przejściu na WebSocket: mniej zbędnych encji, sterowanie A/C jak w aplikacji, wznawianie połączenia.
+
+- **Usunięte:** przycisk konta „OpenCARWINGS Refresh” i bezimienne urządzenie „Brak nazwy”, usługa `ha_opencarwings.refresh`,
+  sensor „Last Requested”, sensor listy aut, martwy sensor Vehicle Health Report. Stare encje znikają same przy starcie.
+  „Poproś auto o dane” zostaje tylko przy każdym aucie.
+- **Zapasowy odczyt REST** przy działającym WebSocket: co 30 min (było 60).
+- **Przełącznik A/C pokazuje prawdziwy stan** (`ac_status` z WebSocket). Po kliknięciu zostaje w wybranej pozycji, dopóki
+  auto nie odpowie (alerty 4/5/7), komenda się nie powiedzie (błąd/timeout, alert 97 – powiadomienie i powrót do stanu auta)
+  albo nie minie 15 min. Gdy auto przez 15 min nic nie wyśle, wysyłane jest jedno „Refresh data”.
+- **Nowy suwak „A/C Temperature”** (16–31 °C, domyślnie 21, pamiętany po restarcie; tylko TCU `ficosa2016`). HA przelicza na °F,
+  na serwer zawsze idą stopnie Celsjusza.
+- **Ponowne połączenie:** diagnostyczny przycisk „Reconnect live updates” i sensor „Push Connection” (po jednym na konto,
+  przy pierwszym aucie) oraz zgłoszenie w Naprawach po 10 min bez połączenia z akcją „Połącz ponownie” (znika samo po powrocie połączenia).
+- **Ikony** z Material Design Icons dla przycisków i przełącznika; sensory „6.6 kW OBC Exists” i „Battery Heater Exists” są diagnostyczne.
+- **Identyfikatory przycisków drzwi** (`entity_id`) są dopasowane do akcji: komenda 7 = `…unlock_doors…`, 8 = `…lock_doors…`.
+  Zaktualizuj automatyzacje, które używały starych identyfikatorów.
+- `raw_car` nie jest zapisywany w bazie recordera.
+- README: opis zmian, przykładowa karta Lovelace, lista TODO z audytu aplikacji.
+
+Do sprawdzenia na żywym serwerze: po jakim czasie auto raportuje `ac_status` po włączeniu A/C oraz czy serwer produkcyjny ma ten sam limit 31 °C.
+
 ## 2026.10.21.7
 
 - **Nowa opcja „Sprawdzaj zaparkowane auto co N godzin/dni”** (wyłączona; 6 h, 12 h, 1 dzień, 2, 3 dni, tydzień,

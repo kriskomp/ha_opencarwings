@@ -25,8 +25,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
     threshold = fresh_threshold(entry)
     entities = [CarDataFreshBinarySensor(coordinator, entry.entry_id, car.vin, threshold, seed_car=car) for car in cars if car.vin]
     ws = data.get("websocket")
-    if ws is not None:
-        entities += [PushConnectionBinarySensor(coordinator, ws, car.vin, seed_car=car) for car in cars if car.vin]
+    first = next((car for car in cars if car.vin), None)
+    if ws is not None and first is not None:
+        # One live connection per account: one sensor, on the first car's device (stale copies are removed in cleanup.py).
+        entities.append(PushConnectionBinarySensor(coordinator, ws, first.vin, seed_car=first))
     async_add_entities(entities)
 
 
