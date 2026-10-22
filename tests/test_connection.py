@@ -135,3 +135,42 @@ async def test_no_websocket_means_no_reconnect_button():
     await button_mod.async_setup_entry(hass, SimpleNamespace(entry_id="e1"), added.extend)
     assert not [e for e in added if isinstance(e, button_mod.OpenCarWingsReconnectButton)]
     assert not [e for e in added if getattr(e, "unique_id", "").startswith("ha_opencarwings_refresh_")]
+
+
+@pytest.mark.asyncio
+async def test_a_closed_watch_ignores_a_late_disconnect_report():
+    # Home Assistant unloads LIFO: the socket reports "disconnected" while stopping, after watch.close().
+    ir_stub.reset()
+    hass, ws = Hass(), SimpleNamespace(connected=False, auth_failed=False)
+    watch = ConnectionWatch(hass, "e1", ws, grace_seconds=0)
+    watch.on_state(True)
+    watch.close()
+    watch.on_state(False)  # the late report from the dying socket
+    await _drain(hass)
+    assert hass.tasks == []  # no timer was started
+    assert ir_stub.ISSUES == {}
+
+
+@pytest.mark.asyncio
+async def test_a_timer_that_is_already_running_does_not_raise_after_close():
+    ir_stub.reset()
+    hass, ws = Hass(), SimpleNamespace(connected=False, auth_failed=False)
+    watch = ConnectionWatch(hass, "e1", ws, grace_seconds=0.05)
+    watch.on_state(False)
+    watch._closed = True  # closed without going through close(): the timer itself must still check
+    await _drain(hass)
+    assert ir_stub.ISSUES == {}
+
+
+@pytest.mark.asyncio
+async def test_a_new_watch_does_not_inherit_the_issue_of_an_old_one():
+    ir_stub.reset()
+    ir_stub.async_create_issue(object(), DOMAIN, issue_id("e1"), is_fixable=True, severity="warning",
+                               translation_key="push_disconnected", data={"entry_id": "e1"})
+    assert ir_stub.ISSUES
+    hass, ws = Hass(), SimpleNamespace(connected=False, auth_failed=False)
+    watch = ConnectionWatch(hass, "e1", ws, grace_seconds=3600)
+    watch.start()  # a fresh setup: the leftover issue is dropped, the grace period begins
+    assert ir_stub.ISSUES == {}
+    watch.close()
+    await _drain(hass)
