@@ -22,10 +22,13 @@ async def test_options_form_defaults_come_from_the_entry():
     result = await _handler().async_step_init()
     assert result["type"] == "form"
     keys = {str(k): k for k in result["data_schema"].schema}
-    assert {"api_token", "api_base_url", "scan_interval", "charging_refresh_interval", "idle_refresh_interval", "data_fresh_minutes", "track_location"} <= set(keys)
+    assert {"api_token", "api_base_url", "scan_interval", "charging_refresh_interval", "idle_refresh_interval", "driving_check_interval", "command_timeout_s", "driving_stale_min", "data_fresh_minutes", "track_location"} <= set(keys)
     assert keys["api_token"].default() == "tok"
     assert keys["charging_refresh_interval"].default() == "0"
     assert keys["idle_refresh_interval"].default() == "0"
+    assert keys["driving_check_interval"].default() == "0"
+    assert keys["command_timeout_s"].default() == 300
+    assert keys["driving_stale_min"].default() == 20
     assert keys["data_fresh_minutes"].default() == 30
     assert keys["track_location"].default() is True
 

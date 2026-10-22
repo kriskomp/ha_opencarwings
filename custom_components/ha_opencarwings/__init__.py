@@ -15,6 +15,7 @@ DEFAULT_SCAN_INTERVAL_MIN = 15
 DEFAULT_CHARGING_REFRESH_MIN = 0
 # 0 = off. Minutes of silence after which a parked car is asked for data (hours or days).
 DEFAULT_IDLE_REFRESH_MIN = 0
+DEFAULT_DRIVING_CHECK_MIN = 0
 # Live updates over WebSocket (on by default); REST stays as a slow safety poll.
 DEFAULT_USE_WEBSOCKET = True
 SAFETY_POLL_MIN = 30
@@ -152,6 +153,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     run_cleanup(hass, entry.entry_id, [str(c.vin) for c in (coordinator.data or []) if c.vin])
 
+    # Thresholds the refresh logic and the Status sensor read (options; see freshness.py for the defaults)
+    from .freshness import DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_DRIVING_STALE_MINUTES
+
+    entry_store = hass.data[DOMAIN][entry.entry_id]
+    entry_store["command_timeout_s"] = int(
+        opts.get("command_timeout_s", entry.data.get("command_timeout_s", DEFAULT_COMMAND_TIMEOUT_SECONDS))
+        or DEFAULT_COMMAND_TIMEOUT_SECONDS
+    )
+    entry_store["driving_stale_min"] = int(
+        opts.get("driving_stale_min", entry.data.get("driving_stale_min", DEFAULT_DRIVING_STALE_MINUTES))
+        or DEFAULT_DRIVING_STALE_MINUTES
+    )
+
     coordinator.push_connected = False
     await _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_token, scan_min)
 
@@ -181,6 +195,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         unsub_idle = async_track_time_interval(hass, idle.async_tick, timedelta(minutes=IDLE_CHECK_MINUTES))
         if hasattr(entry, "async_on_unload"):
             entry.async_on_unload(unsub_idle)
+
+    # "Is it still driving?" question to a car that reports driving (off by default)
+    driving_min = int(opts.get("driving_check_interval", entry.data.get("driving_check_interval", DEFAULT_DRIVING_CHECK_MIN)) or 0)
+    if driving_min > 0:
+        from homeassistant.helpers.event import async_track_time_interval
+        from .charging_refresh import DrivingCheck
+
+        driving = DrivingCheck(hass, entry.entry_id, driving_min)
+        hass.data[DOMAIN][entry.entry_id]["driving_check"] = driving
+        unsub_driving = async_track_time_interval(hass, driving.async_tick, timedelta(minutes=driving_min))
+        if hasattr(entry, "async_on_unload"):
+            entry.async_on_unload(unsub_driving)
 
     # Options (scan interval, charging refresh, freshness threshold) apply after a reload
     if hasattr(entry, "add_update_listener") and hasattr(entry, "async_on_unload"):

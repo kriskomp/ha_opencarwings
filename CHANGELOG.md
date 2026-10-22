@@ -5,6 +5,28 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.22.1
+
+- **Bez czekania na timeout serwera.** Nowa opcja „Zapytaj ponownie po N sekundach bez odpowiedzi” (30–900, domyślnie
+  300 = timeout serwera; wpisz np. 120, żeby ponawiać szybciej). „Refresh data” bez odpowiedzi auta przez ten czas jest
+  wysyłane jeszcze raz (jedna ponowna próba; serwer przyjmuje nową komendę, gdy poprzednia czeka). Dotyczy przycisku „Request data refresh”,
+  odświeżania podczas ładowania i sprawdzania zaparkowanego auta. Odświeżenie czekające dłużej niż ustawiony czas nie
+  blokuje już następnego cyklu (wcześniej do 5+ minut bez danych o baterii podczas ładowania). Inne komendy (A/C,
+  drzwi) nie są powtarzane. `LEAF_COMMAND_TIMEOUT` to ustawienie serwera, integracja go nie zmienia.
+- **„Jedzie” bez potwierdzenia.** Serwer czyści `car_running` dopiero po pakiecie z auta z wyłączonym zapłonem; gdy
+  raport końca podróży nie dotrze (np. brak zgody na ekranie navi), auto „jedzie” godzinami. Gdy `car_running` jest
+  włączone, a ostatni pakiet danych jest starszy niż N minut (nowa opcja „„Jedzie” bez potwierdzenia po N minutach”,
+  5–240, domyślnie 20), sensor Status pokazuje `idle` z atrybutem
+  `driving_unconfirmed: true` (zmienia się tylko wyświetlanie w HA). Sprawdzanie zaparkowanego auta nie jest już blokowane przez taki nieaktualny stan.
+- **Nowa opcja „Pytaj auto, które wygląda na jadące, co N minut”** (wyłączona; 5/10/15 min). Wysyła „Refresh data”,
+  dopóki auto nie odpowie, że stoi (poprawia to też stan na serwerze, stronie i w aplikacji). Po 3 pytaniach bez
+  odpowiedzi z rzędu robi pauzę do czasu, aż auto samo coś wyśle (akumulator 12 V zaparkowanego auta się nie ładuje).
+- README: nowe sekcje o niepotwierdzonym odświeżeniu i o „jedzie” bez końca.
+
+Wnioski z danych (dwa zrzuty stanów): ostatni pakiet `ev_info` miał faktycznie `ignition=true` (odpowiedź na odświeżenie
+w czasie jazdy), a po zaparkowaniu auto nie połączyło się z serwerem wcale (`last_connection` bez zmian). Do sprawdzenia
+po wdrożeniu: czy odpowiedź zaparkowanego auta na „Refresh data” faktycznie czyści „jedzie” na serwerze.
+
 ## 2026.10.21.8
 
 Porządki po przejściu na WebSocket: mniej zbędnych encji, sterowanie A/C jak w aplikacji, wznawianie połączenia.

@@ -12,6 +12,13 @@ from typing import Any
 
 COMMAND_REFRESH = 1
 DEFAULT_FRESH_MINUTES = 30
+# A "Refresh data" command the server still lists as waiting after this long is treated as unanswered: the
+# integration asks again. The default is the server's own timeout (``LEAF_COMMAND_TIMEOUT``, 5 minutes); the
+# option "Ask again after N seconds without an answer" lets the user shorten it (e.g. 120).
+DEFAULT_COMMAND_TIMEOUT_SECONDS = 300
+# The car says it is driving, but its last data packet is older than this: nobody has confirmed it for a while.
+# Option "Driving without confirmation after N minutes".
+DEFAULT_DRIVING_STALE_MINUTES = 20
 
 
 def as_datetime(value: Any) -> datetime | None:
@@ -74,6 +81,25 @@ def command_pending(car: Any) -> bool:
     return bool(getattr(car, "command_requested", None))
 
 
+def command_stalled(car: Any, now: datetime | None = None, stall_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS) -> bool:
+    """A pending "Refresh data" the car has not answered for ``stall_seconds``.
+
+    Only refreshes count: another pending command (A/C, doors) must not be overwritten on the server.
+    """
+    if car is None or not command_pending(car) or getattr(car, "command_type", None) != COMMAND_REFRESH:
+        return False
+    requested = as_datetime(getattr(car, "command_request_time", None))
+    if requested is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    return (now - requested).total_seconds() >= stall_seconds
+
+
+def command_blocks(car: Any, now: datetime | None = None, stall_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS) -> bool:
+    """Is a command in progress that should keep us from sending another one?"""
+    return command_pending(car) and not command_stalled(car, now, stall_seconds)
+
+
 def command_summary(car: Any) -> dict[str, Any]:
     """The state of the last command sent to the car, from the API only."""
     if car is None:
@@ -105,6 +131,7 @@ def refresh_due(
     last_sent: datetime | None,
     interval_minutes: int,
     now: datetime | None = None,
+    stall_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS,
 ) -> bool:
     """Should the integration ask the car for fresh data now?
 
@@ -112,9 +139,9 @@ def refresh_due(
     than ``interval_minutes`` and not when the data is already younger than half
     of that (something else, e.g. an automation, just refreshed it).
     """
-    if interval_minutes <= 0 or not is_charging(car) or command_pending(car):
-        return False
     now = now or datetime.now(timezone.utc)
+    if interval_minutes <= 0 or not is_charging(car) or command_blocks(car, now, stall_seconds):
+        return False
     if last_sent is not None and (now - last_sent).total_seconds() < interval_minutes * 60 - 5:
         return False
     age = data_age_minutes(car, now)
@@ -126,6 +153,22 @@ def refresh_due(
 def is_running(car: Any) -> bool:
     """True while the car reports that it is driving."""
     return bool(getattr(getattr(car, "ev_info", None), "car_running", None))
+
+
+def driving_unconfirmed(car: Any, now: datetime | None = None, stale_minutes: float = DEFAULT_DRIVING_STALE_MINUTES) -> bool:
+    """``car_running`` is on, but the car has sent no data packet for ``stale_minutes``.
+
+    The server only clears "driving" when the car sends a packet with the ignition off. A car that was parked
+    without the end-of-trip report (the driver did not agree on the navigation screen) stays "driving" forever.
+    """
+    if not is_running(car):
+        return False
+    age = data_age_minutes(car, now)
+    return age is not None and age > stale_minutes
+
+
+def is_driving(car: Any, now: datetime | None = None, stale_minutes: float = DEFAULT_DRIVING_STALE_MINUTES) -> bool:
+    return is_running(car) and not driving_unconfirmed(car, now, stale_minutes)
 
 
 def last_contact(car: Any) -> datetime | None:
@@ -140,23 +183,31 @@ def last_contact(car: Any) -> datetime | None:
     return max(stamps) if stamps else None
 
 
-def idle_refresh_due(car: Any, *, interval_minutes: int, now: datetime | None = None) -> bool:
+def idle_refresh_due(
+    car: Any,
+    *,
+    interval_minutes: int,
+    now: datetime | None = None,
+    stall_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    stale_minutes: float = DEFAULT_DRIVING_STALE_MINUTES,
+) -> bool:
     """Should a parked car be asked for fresh data (a "check on the car" command)?
 
     Mirrors the server's own periodic refresh and protects the 12 V battery, because every command wakes
     the car's modem:
 
-    * never while charging or driving (the car reports by itself, charging has its own option),
-    * never while a command is pending,
+    * never while charging or driving (the car reports by itself, charging has its own option); a "driving"
+      the car has not confirmed for a long time does not count as driving,
+    * never while a command is pending (an unanswered refresh older than the timeout does not count),
     * only when the car has not been heard from for ``interval_minutes``,
     * and not when any command was requested within the last ``interval_minutes``. That also stops
       repeated wake-ups of a car that did not answer (timeout/error) and survives a Home Assistant restart.
     """
     if interval_minutes <= 0 or car is None:
         return False
-    if is_charging(car) or is_running(car) or command_pending(car):
-        return False
     now = now or datetime.now(timezone.utc)
+    if is_charging(car) or is_driving(car, now, stale_minutes) or command_blocks(car, now, stall_seconds):
+        return False
     limit = interval_minutes * 60
     heard = last_contact(car)
     if heard is not None and (now - heard).total_seconds() < limit:
@@ -210,3 +261,28 @@ def format_minutes(minutes: Any) -> str | None:
     if mins or not parts:
         parts.append(f"{mins} min")
     return " ".join(parts)
+
+
+def driving_check_due(
+    car: Any,
+    *,
+    last_sent: datetime | None,
+    interval_minutes: int,
+    now: datetime | None = None,
+    stall_seconds: float = DEFAULT_COMMAND_TIMEOUT_SECONDS,
+) -> bool:
+    """Should a car that reports "driving" be asked whether it still is?
+
+    While it really drives the 12 V battery is charged, so a question every few minutes is harmless. When the
+    car has stopped without a report, the answer (ignition off) corrects the server's state. Same pacing as the
+    charging refresh: not more often than ``interval_minutes`` and not when the data is already fresh.
+    """
+    if interval_minutes <= 0 or not is_running(car):
+        return False
+    now = now or datetime.now(timezone.utc)
+    if command_blocks(car, now, stall_seconds):
+        return False
+    if last_sent is not None and (now - last_sent).total_seconds() < interval_minutes * 60 - 5:
+        return False
+    age = data_age_minutes(car, now)
+    return age is None or age >= interval_minutes / 2
