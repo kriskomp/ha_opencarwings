@@ -32,8 +32,19 @@ class ConnectionWatch:
         self._ws = ws
         self._grace = grace_seconds
         self._task: Any = None
+        self._closed = False
+
+    def start(self) -> None:
+        """Entry set up: drop a leftover issue of an earlier run and start the grace period (not connected yet)."""
+        self._delete_issue()
+        self.on_state(False)
 
     def on_state(self, connected: bool) -> None:
+        if self._closed:
+            # Home Assistant unloads an entry last-in-first-out and the socket reports "disconnected" while it
+            # stops, which can be after ``close``. A closed watch belongs to a dead connection: it must never
+            # start a timer or raise an issue (the reloaded entry has its own watch).
+            return
         if connected:
             self._cancel()
             self._delete_issue()
@@ -41,7 +52,8 @@ class ConnectionWatch:
             self._task = self._hass.async_create_task(self._raise_later())
 
     def close(self) -> None:
-        """Entry unloaded: no timer, no leftover issue."""
+        """Entry unloaded: no timer, no leftover issue, and no reaction to anything that happens afterwards."""
+        self._closed = True
         self._cancel()
         self._delete_issue()
 
@@ -55,11 +67,13 @@ class ConnectionWatch:
             await asyncio.sleep(self._grace)
         except asyncio.CancelledError:
             raise
-        if self._ws.connected or self._ws.auth_failed:
+        if self._closed or self._ws.connected or self._ws.auth_failed:
             return
         self._create_issue()
 
     def _create_issue(self) -> None:
+        if self._closed:
+            return
         try:
             from homeassistant.helpers import issue_registry as ir
 

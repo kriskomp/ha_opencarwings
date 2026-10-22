@@ -272,15 +272,16 @@ async def _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_t
     )
     hass.data[DOMAIN][entry.entry_id]["websocket"] = ws
     watch = ConnectionWatch(hass, entry.entry_id, ws)
-    watch.on_state(False)  # not connected yet: the grace period starts now
+    watch.start()  # not connected yet: the grace period starts now
     if hasattr(entry, "async_on_unload"):
+        # Unload callbacks run last-in-first-out: stop the socket last, so the watch is closed before the socket
+        # reports "disconnected" (the watch also ignores events after close, whatever the order).
+        entry.async_on_unload(ws.stop)
         entry.async_on_unload(watch.close)
     if hasattr(hass, "async_create_background_task"):
         ws.start(lambda coro: hass.async_create_background_task(coro, f"{DOMAIN}_websocket"))
     else:  # minimal test stubs
         ws.start(hass.async_create_task)
-    if hasattr(entry, "async_on_unload"):
-        entry.async_on_unload(ws.stop)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

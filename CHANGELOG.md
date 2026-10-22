@@ -5,6 +5,15 @@ Numeracja wersji: `RRRR.MM.DD.N` (data wydania i numer kolejnego PR danego dnia,
 Poprzednie wydanie (1.0.0, bez wersjonowania datą) to kod z [oryginału developerfromjokela/ha_opencarwings](https://github.com/developerfromjokela/ha_opencarwings)
 (commit „Fix some issues” z 29.08.2026).
 
+## 2026.10.22.2
+
+- **Poprawka fałszywego zgłoszenia „Połącz ponownie aktualizacje na żywo” w Naprawach.** Po każdym przeładowaniu
+  integracji (np. zapis opcji) zgłoszenie pojawiało się po 10 minutach, mimo że połączenie działało. Home Assistant
+  wyładowuje wpisy w odwrotnej kolejności, więc stare gniazdo zgłaszało „rozłączone” już po zamknięciu nadzoru
+  połączenia, co zakładało nowy 10-minutowy licznik martwego połączenia. Teraz zamknięty nadzór ignoruje wszystkie
+  zdarzenia i nie tworzy zgłoszeń, kolejność zamykania jest poprawiona, a przy starcie znika zgłoszenie zostawione
+  przez wcześniejsze uruchomienie. Dotyczyło to wersji od 2026.10.21.8; auto i komunikacja z nim nie miały tu znaczenia.
+
 ## 2026.10.22.1
 
 - **Bez czekania na timeout serwera.** Nowa opcja „Zapytaj ponownie po N sekundach bez odpowiedzi” (30–900, domyślnie
