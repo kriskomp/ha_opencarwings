@@ -30,17 +30,22 @@ def _driving(minutes_old, **kw):
 
 # -- unanswered refresh -----------------------------------------------------------------------------------------
 
-def test_a_refresh_is_stalled_after_two_minutes():
-    assert command_stalled(_pending(119), NOW) is False
-    assert command_stalled(_pending(120), NOW) is True
-    assert command_blocks(_pending(60), NOW) is True
-    assert command_blocks(_pending(300), NOW) is False
+def test_a_refresh_is_stalled_after_the_configured_timeout():
+    assert command_stalled(_pending(119), NOW, 120) is False
+    assert command_stalled(_pending(120), NOW, 120) is True
+    assert command_blocks(_pending(60), NOW, 120) is True
+    assert command_blocks(_pending(300), NOW, 120) is False
+
+
+def test_the_default_timeout_is_the_servers_five_minutes():
+    assert command_stalled(_pending(299), NOW) is False
+    assert command_stalled(_pending(300), NOW) is True
 
 
 def test_other_commands_are_never_stalled():
     # an A/C command must not be replaced on the server by a refresh
-    assert command_stalled(_pending(600, command_type=3), NOW) is False
-    assert command_blocks(_pending(600, command_type=3), NOW) is True
+    assert command_stalled(_pending(600, command_type=3), NOW, 120) is False
+    assert command_blocks(_pending(600, command_type=3), NOW, 120) is True
 
 
 def test_a_finished_command_is_not_stalled():
@@ -49,9 +54,9 @@ def test_a_finished_command_is_not_stalled():
 
 def test_charging_refresh_goes_ahead_when_the_last_refresh_got_no_answer():
     car = _pending(300, last_updated=NOW - timedelta(minutes=40))
-    assert refresh_due(car, last_sent=None, interval_minutes=10, now=NOW) is True
+    assert refresh_due(car, last_sent=None, interval_minutes=10, now=NOW, stall_seconds=120) is True
     car = _pending(60, last_updated=NOW - timedelta(minutes=40))
-    assert refresh_due(car, last_sent=None, interval_minutes=10, now=NOW) is False
+    assert refresh_due(car, last_sent=None, interval_minutes=10, now=NOW, stall_seconds=120) is False
 
 
 class Api:
@@ -90,7 +95,7 @@ async def test_follow_refresh_asks_once_more_after_two_minutes(monkeypatch):
     monkeypatch.setattr(cr.opencarwings_client, "CarsApi", api)
     monkeypatch.setattr(cr.asyncio, "sleep", _no_sleep)
 
-    result = await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1")
+    result = await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1", 120)
 
     assert api.sent == [1]  # exactly one repeat
     assert result is done
@@ -102,7 +107,7 @@ async def test_follow_refresh_does_not_repeat_when_the_car_answered(monkeypatch)
     api = Api([done])
     monkeypatch.setattr(cr.opencarwings_client, "CarsApi", api)
     monkeypatch.setattr(cr.asyncio, "sleep", _no_sleep)
-    await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1")
+    await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1", 120)
     assert api.sent == []
 
 
@@ -112,7 +117,7 @@ async def test_follow_refresh_gives_up_after_the_second_try(monkeypatch):
     api = Api([waiting])
     monkeypatch.setattr(cr.opencarwings_client, "CarsApi", api)
     monkeypatch.setattr(cr.asyncio, "sleep", _no_sleep)
-    result = await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1")
+    result = await cr.follow_refresh(object(), Coordinator([car_data(make_car())]), "VIN1", 120)
     assert api.sent == [1] and result is waiting
 
 
@@ -123,6 +128,16 @@ def test_driving_is_unconfirmed_when_the_data_is_old():
     assert driving_unconfirmed(_driving(21), NOW) is True
     assert is_driving(_driving(21), NOW) is False
     assert is_driving(_driving(5), NOW) is True
+
+
+def test_the_driving_threshold_is_configurable():
+    assert driving_unconfirmed(_driving(30), NOW, stale_minutes=60) is False
+    assert driving_unconfirmed(_driving(30), NOW, stale_minutes=10) is True
+
+
+def test_the_configured_values_are_read_from_the_entry_data():
+    assert cr.timeout_seconds({}) == 300 and cr.timeout_seconds({"command_timeout_s": 120}) == 120
+    assert cr.driving_stale_minutes({}) == 20 and cr.driving_stale_minutes({"driving_stale_min": 45}) == 45
 
 
 def test_a_parked_car_is_never_unconfirmed_driving():

@@ -10,6 +10,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_TOKEN
 
 from .api import get_client, DEFAULT_API_BASE
+from .freshness import DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_DRIVING_STALE_MINUTES
 
 # Scan interval choices in minutes with friendly labels
 SCAN_INTERVAL_CHOICES = [
@@ -182,7 +183,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         entry = self.config_entry
         if user_input is not None:
             data = dict(user_input)
-            for key in ("scan_interval", "charging_refresh_interval", "idle_refresh_interval", "driving_check_interval", "data_fresh_minutes"):
+            for key in ("scan_interval", "charging_refresh_interval", "idle_refresh_interval", "driving_check_interval", "data_fresh_minutes", "command_timeout_s", "driving_stale_min"):
                 if key in data:
                     data[key] = int(data[key])
             return self.async_create_entry(title="", data=data)
@@ -216,6 +217,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(
                     "data_fresh_minutes", default=int(current("data_fresh_minutes", DEFAULT_FRESH_MINUTES))
                 ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
+                vol.Required(
+                    "command_timeout_s", default=int(current("command_timeout_s", DEFAULT_COMMAND_TIMEOUT_SECONDS))
+                ): vol.All(vol.Coerce(int), vol.Range(min=30, max=900)),
+                vol.Required(
+                    "driving_stale_min", default=int(current("driving_stale_min", DEFAULT_DRIVING_STALE_MINUTES))
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=240)),
                 vol.Required("track_location", default=bool(current("track_location", True))): bool,
             }),
         )

@@ -38,7 +38,9 @@
           "use_websocket": "Aktualizacje na żywo (WebSocket)",
           "track_location": "Pokazuj auto na mapie (device tracker)",
           "idle_refresh_interval": "Sprawdzaj zaparkowane auto co N godzin/dni",
-          "driving_check_interval": "Pytaj auto, które wygląda na jadące, co N minut"
+          "driving_check_interval": "Pytaj auto, które wygląda na jadące, co N minut",
+          "command_timeout_s": "Zapytaj ponownie po N sekundach bez odpowiedzi",
+          "driving_stale_min": "„Jedzie” bez potwierdzenia po N minutach"
         },
         "data_description": {
           "charging_refresh_interval": "Wysyła komendę „Odśwież dane” tylko gdy ostatni znany stan auta to ładowanie. Domyślnie wyłączone.",
@@ -46,7 +48,9 @@
           "use_websocket": "Serwer przesyła zmiany od razu. Interwał odczytu działa wtedy tylko jako zapasowy odczyt na wypadek, gdyby połączenie na żywo przestało działać (30 minut lub interwał, zależnie co dłuższe). Wyłącz, jeśli sieć blokuje WebSocket.",
           "track_location": "Włączone: encja device tracker pokazuje auto na mapie. Wyłączone: tracker nie jest tworzony, a pozycja jest pomijana w atrybutach sensora Status.",
           "idle_refresh_interval": "Wysyła „Odśwież dane” do auta, gdy milczy tak długo i nie ładuje się ani nie jedzie. Każda komenda budzi modem auta (akumulator 12 V), więc ustaw długi interwał; po braku odpowiedzi czeka pełny interwał przed kolejną próbą. Domyślnie wyłączone.",
-          "driving_check_interval": "Wysyła „Odśwież dane”, gdy auto zgłasza jazdę, aż odpowie, że stoi (serwer czyści „jazdę” dopiero po pakiecie z wyłączonym zapłonem, który nie przychodzi, gdy na ekranie navi odrzucono raport końca podróży). Po 3 pytaniach bez odpowiedzi z rzędu robi pauzę do czasu, aż auto samo coś wyśle, żeby chronić akumulator 12 V. Domyślnie wyłączone."
+          "driving_check_interval": "Wysyła „Odśwież dane”, gdy auto zgłasza jazdę, aż odpowie, że stoi (serwer czyści „jazdę” dopiero po pakiecie z wyłączonym zapłonem, który nie przychodzi, gdy na ekranie navi odrzucono raport końca podróży). Po 3 pytaniach bez odpowiedzi z rzędu robi pauzę do czasu, aż auto samo coś wyśle, żeby chronić akumulator 12 V. Domyślnie wyłączone.",
+          "command_timeout_s": "Jak długo „Odśwież dane” może pozostać bez odpowiedzi, zanim integracja wyśle je jeszcze raz. Domyślne 300 s to timeout serwera (5 minut); wpisz np. 120, żeby ponawiać szybciej. Nie zmienia timeoutu serwera.",
+          "driving_stale_min": "Gdy serwer twierdzi, że auto jedzie, ale auto od tylu minut nic nie wysłało, sensor Status pokazuje idle z driving_unconfirmed: true. Domyślnie 20."
         }
       }
     }

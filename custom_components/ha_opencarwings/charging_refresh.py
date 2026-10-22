@@ -18,7 +18,8 @@ from opencarwings_client import ApiCommandCreateRequest
 
 from .freshness import (
     COMMAND_REFRESH,
-    COMMAND_STALL_SECONDS,
+    DEFAULT_COMMAND_TIMEOUT_SECONDS,
+    DEFAULT_DRIVING_STALE_MINUTES,
     command_pending,
     data_timestamp,
     driving_check_due,
@@ -127,6 +128,7 @@ class ChargingRefresh:
                 last_sent=self._last_sent.get(vin),
                 interval_minutes=self.interval_minutes,
                 now=now,
+                stall_seconds=timeout_seconds(data),
             ):
                 self._last_sent[vin] = now
                 self._running[vin] = self._hass.async_create_task(self._async_cycle(vin))
@@ -140,20 +142,30 @@ class ChargingRefresh:
             self._running.pop(vin, None)
 
 
-async def follow_refresh(client: Any, coordinator: Any, vin: str) -> Any:
-    """Follow a "Refresh data" command; when the car has not answered after two minutes, ask once more.
+def timeout_seconds(entry_data: dict) -> int:
+    """The configured "ask again after N seconds" (default: the server's own timeout, 5 minutes)."""
+    return int(entry_data.get("command_timeout_s") or DEFAULT_COMMAND_TIMEOUT_SECONDS)
 
-    The server keeps a command "waiting" for its own timeout (several minutes). A sleeping modem often answers the
-    second wake-up at once, so waiting that long only loses data. The server accepts a new command while one is
-    pending (it replaces it), so asking again is safe. Returns the last ``Car`` read.
+
+def driving_stale_minutes(entry_data: dict) -> int:
+    return int(entry_data.get("driving_stale_min") or DEFAULT_DRIVING_STALE_MINUTES)
+
+
+async def follow_refresh(client: Any, coordinator: Any, vin: str,
+                         timeout: int = DEFAULT_COMMAND_TIMEOUT_SECONDS) -> Any:
+    """Follow a "Refresh data" command; when the car has not answered after ``timeout`` seconds, ask once more.
+
+    The server keeps a command "waiting" for its own timeout (5 minutes by default). A sleeping modem often
+    answers the second wake-up at once, so waiting that long can lose data. The server accepts a new command
+    while one is pending (it replaces it), so asking again is safe. Returns the last ``Car`` read.
     """
-    car = await follow_command(client, coordinator, vin, timeout_seconds=COMMAND_STALL_SECONDS)
+    car = await follow_command(client, coordinator, vin, timeout_seconds=timeout)
     if car is not None and command_pending(car):
-        _LOGGER.info("No answer from %s after %s s; sending \"Refresh data\" once more", vin, COMMAND_STALL_SECONDS)
+        _LOGGER.info("No answer from %s after %s s; sending \"Refresh data\" once more", vin, timeout)
         cars_api = opencarwings_client.CarsApi(client)
         response = await cars_api.api_command_create(vin, ApiCommandCreateRequest(command_type=COMMAND_REFRESH))
         store_car(coordinator, vin, response.car)
-        car = await follow_command(client, coordinator, vin, timeout_seconds=COMMAND_STALL_SECONDS)
+        car = await follow_command(client, coordinator, vin, timeout_seconds=timeout)
     return car
 
 
@@ -164,7 +176,7 @@ async def send_refresh(entry_data: dict, vin: str) -> Any:
     cars_api = opencarwings_client.CarsApi(client)
     response = await cars_api.api_command_create(vin, ApiCommandCreateRequest(command_type=COMMAND_REFRESH))
     store_car(coordinator, vin, response.car)
-    return await follow_refresh(client, coordinator, vin)
+    return await follow_refresh(client, coordinator, vin, timeout_seconds(entry_data))
 
 
 # How often the idle check runs. It only looks at data we already hold, so it costs nothing.
@@ -201,7 +213,13 @@ class IdleRefresh:
             vin = car_data.vin
             if not vin or vin in self._running:
                 continue
-            if idle_refresh_due(car_data.get_latest_car(), interval_minutes=self.interval_minutes, now=now):
+            if idle_refresh_due(
+                car_data.get_latest_car(),
+                interval_minutes=self.interval_minutes,
+                now=now,
+                stall_seconds=timeout_seconds(data),
+                stale_minutes=driving_stale_minutes(data),
+            ):
                 _LOGGER.info("Idle refresh: asking %s for data (silent for %s min)", vin, self.interval_minutes)
                 self._running[vin] = self._hass.async_create_task(self._async_cycle(vin))
 
@@ -272,6 +290,7 @@ class DrivingCheck:
                 last_sent=self._last_sent.get(vin),
                 interval_minutes=self.interval_minutes,
                 now=now,
+                stall_seconds=timeout_seconds(data),
             ):
                 self._last_sent[vin] = now
                 self._running[vin] = self._hass.async_create_task(self._async_cycle(vin, now))

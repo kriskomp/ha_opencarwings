@@ -32,6 +32,7 @@ from .freshness import (
     command_summary,
     data_age_minutes,
     data_timestamp,
+    DEFAULT_DRIVING_STALE_MINUTES,
     driving_unconfirmed,
     format_local,
     format_minutes,
@@ -118,6 +119,12 @@ class OpenCarwingsCarEntity(CoordinatorEntity):
                 if c.vin == self._vin:
                     return c or CarData(self._vin)
         return self._seed_car or CarData(self._vin)
+
+    def _stale_minutes(self) -> int:
+        """The configured "driving without confirmation after N minutes" (option; default 20)."""
+        hass = getattr(self, "hass", None)
+        entry_data = hass.data.get(DOMAIN, {}).get(self._entry_id, {}) if hass is not None else {}
+        return int(entry_data.get("driving_stale_min") or DEFAULT_DRIVING_STALE_MINUTES)
 
     def _get_car_dict(self) -> dict:
         car_info = self._get_car().get_latest_car()
@@ -279,7 +286,9 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
             return "quick_charging"
         if ev.get("charging"):
             return "charging"
-        if ev.get("car_running") and not driving_unconfirmed(self._get_car().get_latest_car()):
+        if ev.get("car_running") and not driving_unconfirmed(
+            self._get_car().get_latest_car(), stale_minutes=self._stale_minutes()
+        ):
             return "running"
         if ev.get("ac_status"):
             return "ac_on"
@@ -304,7 +313,9 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
                 else int(age)
             ),
             "command_requested": car.get("command_requested"),
-            "driving_unconfirmed": driving_unconfirmed(self._get_car().get_latest_car()),
+            "driving_unconfirmed": driving_unconfirmed(
+                self._get_car().get_latest_car(), stale_minutes=self._stale_minutes()
+            ),
             "signal_level": car.get("signal_level"),
             "carrier": car.get("carrier"),
             "navi_version": car.get("navi_version"),

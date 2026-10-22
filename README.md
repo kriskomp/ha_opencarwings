@@ -86,15 +86,16 @@ on data the integration already holds and costs nothing. The OpenCARWINGS server
 *Periodic refresh*) but the API cannot change it, so this option lets you manage it from Home Assistant; using both is
 safe because the rule above looks at the last command.
 
-## Unanswered refresh (2 minutes) ⏱️
+## Unanswered refresh ⏱️
 
 The server keeps a "Refresh data" command *waiting* until its own timeout (5 minutes in its example settings,
 `LEAF_COMMAND_TIMEOUT`, a server setting the integration cannot change). A car whose modem sleeps often answers the
-second wake-up at once, so the integration does not wait that long: when a refresh it sent (the *Request data refresh*
-button, the charging refresh, the parked-car check) has no answer after **2 minutes**, it sends "Refresh data" **once
-more** (the server accepts a new command while one is waiting and replaces it) and then gives up until the next
-regular cycle. A refresh that is still waiting after 2 minutes also no longer blocks the next charging/parked-car
-refresh. Other commands (A/C, doors) are never repeated or replaced.
+second wake-up at once. *Configure* → **Ask again after N seconds without an answer** (30-900, default **300** = the
+server's timeout) sets how long the integration waits before it sends "Refresh data" **once more** (the server accepts
+a new command while one is waiting and replaces it); enter e.g. **120** to retry sooner. It applies to refreshes the
+integration sends (the *Request data refresh* button, the charging refresh, the parked-car and driving checks), then
+it gives up until the next regular cycle. A refresh still waiting after that time also no longer blocks the next
+charging/parked-car refresh. Other commands (A/C, doors) are never repeated or replaced.
 
 ## "Driving" that never ends 🚗
 
@@ -102,9 +103,10 @@ The server clears "driving" (`car_running`) only when the car sends a data packe
 end-of-trip report is declined on the navigation screen (or never sent), the car stays "driving" on the website, in the
 Android app and in Home Assistant, sometimes for days. Nothing in the API says otherwise, so:
 
-- If `car_running` is on but the car's last data packet is older than **20 minutes**, the `Status` sensor shows `idle`
-  instead of `running` and has the attribute `driving_unconfirmed: true`. (The `Running` sensor still shows what the
-  server says.) The parked-car check above is no longer blocked by such a stale "driving".
+- If `car_running` is on but the car's last data packet is older than **N minutes** (*Configure* → **Driving counts as
+  unconfirmed after N minutes**, 5-240, default **20**), the `Status` sensor shows `idle` instead of `running` and has
+  the attribute `driving_unconfirmed: true`. (The `Running` sensor still shows what the server says.) This changes only
+  what Home Assistant shows. The parked-car check above is no longer blocked by such a stale "driving".
 - Optional, off by default: *Configure* → **Ask a car that seems to be driving every N minutes** (off / 5 / 10 / 15).
   While the car reports driving, the integration sends "Refresh data" at that interval; the answer has the ignition
   state, so a parked car is corrected on the server too (website and app). It stops as soon as the car says it is
@@ -214,6 +216,8 @@ Setup is done in the UI (*Settings → Devices & services → Add integration �
 | --- | --- | --- |
 | Live updates (WebSocket) | on | Server pushes changes; turn off if your network blocks WebSockets. |
 | Check on the parked car every N hours/days | off | Asks a silent, parked car for data, see *Checking on a parked car* below. |
+| Ask again after N seconds without an answer | 300 | How long a "Refresh data" may stay unanswered before it is sent once more (e.g. 120), see [Unanswered refresh](#unanswered-refresh-). |
+| Driving counts as unconfirmed after N minutes | 20 | Status shows `idle` when the car says driving but sent no data this long, see ["Driving" that never ends](#driving-that-never-ends-). |
 | Ask a car that seems to be driving every N minutes | off | Asks a car that reports driving until it says it is parked, see ["Driving" that never ends](#driving-that-never-ends-). |
 | Ask the car for data every N minutes while charging | off | Sends "Refresh data" while the car charges, see [Refresh while charging](#refresh-while-charging-). |
 | Data counts as fresh for (minutes) | 30 | Threshold of the `Data Fresh` binary sensor. |

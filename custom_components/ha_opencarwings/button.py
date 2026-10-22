@@ -16,7 +16,7 @@ except Exception:  # pragma: no cover
         DIAGNOSTIC = "diagnostic"
 
 from . import DOMAIN
-from .charging_refresh import follow_command, follow_refresh, store_car
+from .charging_refresh import follow_command, follow_refresh, store_car, timeout_seconds
 from .commands import command_supported
 from .util import CarData
 
@@ -119,10 +119,13 @@ class OpenCarWingsCommandButton(OpenCarwingsButton):
                 store_car(self._coordinator, self._vin, command_result.car)
                 # Follow the command so "Command Status" and the data age update
                 # as soon as the car answers (or the server gives up).
-                follower = follow_refresh if self._command_id == 1 else follow_command
-                self.hass.async_create_task(
-                    follower(hass_client(self.hass, self._entry_id), self._coordinator, self._vin)
-                )
+                client_ = hass_client(self.hass, self._entry_id)
+                if self._command_id == 1:
+                    entry_data = self.hass.data.get(DOMAIN, {}).get(self._entry_id, {})
+                    task = follow_refresh(client_, self._coordinator, self._vin, timeout_seconds(entry_data))
+                else:
+                    task = follow_command(client_, self._coordinator, self._vin)
+                self.hass.async_create_task(task)
             except Exception:  # pragma: no cover - coordinator failure
                 _LOGGER.exception("Failed to update coordinator data after command for %s", self._vin)
         except Exception:  # pragma: no cover - network

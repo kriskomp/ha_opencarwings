@@ -153,6 +153,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     run_cleanup(hass, entry.entry_id, [str(c.vin) for c in (coordinator.data or []) if c.vin])
 
+    # Thresholds the refresh logic and the Status sensor read (options; see freshness.py for the defaults)
+    from .freshness import DEFAULT_COMMAND_TIMEOUT_SECONDS, DEFAULT_DRIVING_STALE_MINUTES
+
+    entry_store = hass.data[DOMAIN][entry.entry_id]
+    entry_store["command_timeout_s"] = int(
+        opts.get("command_timeout_s", entry.data.get("command_timeout_s", DEFAULT_COMMAND_TIMEOUT_SECONDS))
+        or DEFAULT_COMMAND_TIMEOUT_SECONDS
+    )
+    entry_store["driving_stale_min"] = int(
+        opts.get("driving_stale_min", entry.data.get("driving_stale_min", DEFAULT_DRIVING_STALE_MINUTES))
+        or DEFAULT_DRIVING_STALE_MINUTES
+    )
+
     coordinator.push_connected = False
     await _async_setup_websocket(hass, entry, coordinator, opts, base_url, api_token, scan_min)
 
