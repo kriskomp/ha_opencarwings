@@ -16,7 +16,16 @@ from typing import Any
 import opencarwings_client
 from opencarwings_client import ApiCommandCreateRequest
 
-from .freshness import COMMAND_REFRESH, command_pending, idle_refresh_due, refresh_due
+from .freshness import (
+    COMMAND_REFRESH,
+    COMMAND_STALL_SECONDS,
+    command_pending,
+    data_timestamp,
+    driving_check_due,
+    idle_refresh_due,
+    is_running,
+    refresh_due,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -131,14 +140,31 @@ class ChargingRefresh:
             self._running.pop(vin, None)
 
 
-async def send_refresh(entry_data: dict, vin: str) -> None:
-    """Send "Refresh data" to the car and follow the command until the server reports a result."""
+async def follow_refresh(client: Any, coordinator: Any, vin: str) -> Any:
+    """Follow a "Refresh data" command; when the car has not answered after two minutes, ask once more.
+
+    The server keeps a command "waiting" for its own timeout (several minutes). A sleeping modem often answers the
+    second wake-up at once, so waiting that long only loses data. The server accepts a new command while one is
+    pending (it replaces it), so asking again is safe. Returns the last ``Car`` read.
+    """
+    car = await follow_command(client, coordinator, vin, timeout_seconds=COMMAND_STALL_SECONDS)
+    if car is not None and command_pending(car):
+        _LOGGER.info("No answer from %s after %s s; sending \"Refresh data\" once more", vin, COMMAND_STALL_SECONDS)
+        cars_api = opencarwings_client.CarsApi(client)
+        response = await cars_api.api_command_create(vin, ApiCommandCreateRequest(command_type=COMMAND_REFRESH))
+        store_car(coordinator, vin, response.car)
+        car = await follow_command(client, coordinator, vin, timeout_seconds=COMMAND_STALL_SECONDS)
+    return car
+
+
+async def send_refresh(entry_data: dict, vin: str) -> Any:
+    """Send "Refresh data" to the car and follow it (see ``follow_refresh``). Returns the last ``Car`` read."""
     client = entry_data["client"]
     coordinator = entry_data.get("coordinator")
     cars_api = opencarwings_client.CarsApi(client)
     response = await cars_api.api_command_create(vin, ApiCommandCreateRequest(command_type=COMMAND_REFRESH))
     store_car(coordinator, vin, response.car)
-    await follow_command(client, coordinator, vin)
+    return await follow_refresh(client, coordinator, vin)
 
 
 # How often the idle check runs. It only looks at data we already hold, so it costs nothing.
@@ -184,5 +210,85 @@ class IdleRefresh:
             await send_refresh(self._entry_data(), vin)
         except Exception:  # pragma: no cover - network
             _LOGGER.exception("Idle refresh for %s failed", vin)
+        finally:
+            self._running.pop(vin, None)
+
+
+# After this many unanswered questions in a row the "is it still driving?" check pauses until the car sends data.
+DRIVING_MAX_MISSES = 3
+
+
+class DrivingCheck:
+    """Asks a car that reports "driving" whether it still does (opt-in), every few minutes.
+
+    Stops when the car answers that it is parked (the server then clears "driving"). A car that does not answer
+    three times in a row is left alone until it sends something by itself, because a parked car's 12 V battery is
+    not being charged.
+    """
+
+    def __init__(self, hass: Any, entry_id: str, interval_minutes: int) -> None:
+        self._hass = hass
+        self._entry_id = entry_id
+        self.interval_minutes = interval_minutes
+        self._last_sent: dict[str, datetime] = {}
+        self._running: dict[str, asyncio.Task] = {}
+        self._misses: dict[str, int] = {}
+        self._paused_at: dict[str, datetime] = {}
+
+    def _entry_data(self) -> dict:
+        from . import DOMAIN
+
+        return self._hass.data.get(DOMAIN, {}).get(self._entry_id, {})
+
+    async def async_tick(self, now: datetime | None = None) -> None:
+        data = self._entry_data()
+        coordinator = data.get("coordinator")
+        if coordinator is None:
+            return
+        if not getattr(coordinator, "push_connected", False):
+            try:
+                await coordinator.async_request_refresh()
+            except Exception:  # pragma: no cover - network
+                _LOGGER.exception("Could not refresh car data before the driving check")
+        now = now or datetime.now(timezone.utc)
+        for car_data in list(coordinator.data or []):
+            vin = car_data.vin
+            if not vin or vin in self._running:
+                continue
+            car = car_data.get_latest_car()
+            if not is_running(car):
+                self._misses.pop(vin, None)
+                self._paused_at.pop(vin, None)
+                continue
+            paused = self._paused_at.get(vin)
+            if paused is not None:
+                stamp, _ = data_timestamp(car)
+                if stamp is None or stamp <= paused:
+                    continue  # still silent: stay quiet
+                self._misses.pop(vin, None)
+                self._paused_at.pop(vin, None)
+            if driving_check_due(
+                car,
+                last_sent=self._last_sent.get(vin),
+                interval_minutes=self.interval_minutes,
+                now=now,
+            ):
+                self._last_sent[vin] = now
+                self._running[vin] = self._hass.async_create_task(self._async_cycle(vin, now))
+
+    async def _async_cycle(self, vin: str, now: datetime) -> None:
+        try:
+            car = await send_refresh(self._entry_data(), vin)
+            answered = car is not None and not command_pending(car) and getattr(car, "command_result", None) == 0
+            if answered:
+                self._misses.pop(vin, None)
+            else:
+                self._misses[vin] = self._misses.get(vin, 0) + 1
+                if self._misses[vin] >= DRIVING_MAX_MISSES:
+                    self._paused_at[vin] = datetime.now(timezone.utc)
+                    _LOGGER.info("%s did not answer %s times; the driving check pauses until it sends data", vin,
+                                 DRIVING_MAX_MISSES)
+        except Exception:  # pragma: no cover - network
+            _LOGGER.exception("Driving check for %s failed", vin)
         finally:
             self._running.pop(vin, None)

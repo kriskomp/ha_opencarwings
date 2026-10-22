@@ -37,14 +37,16 @@
           "data_fresh_minutes": "Data counts as fresh for (minutes)",
           "use_websocket": "Live updates (WebSocket)",
           "track_location": "Show the car on the map (device tracker)",
-          "idle_refresh_interval": "Check on the parked car every N hours/days"
+          "idle_refresh_interval": "Check on the parked car every N hours/days",
+          "driving_check_interval": "Ask a car that seems to be driving every N minutes"
         },
         "data_description": {
           "charging_refresh_interval": "Sends the \"Refresh data\" command only while the car's last known state is charging. Off by default.",
           "data_fresh_minutes": "Used by the \"Data Fresh\" binary sensor.",
           "use_websocket": "The server pushes changes as they happen. The update interval then acts only as a backup read in case the live connection stops working (30 minutes or the interval, whichever is longer). Turn off if your network blocks WebSockets.",
           "track_location": "On: a device tracker entity shows the car on the map. Off: no tracker is created and the position is left out of the Status sensor attributes.",
-          "idle_refresh_interval": "Sends \"Refresh data\" to the car when it has been silent this long and is neither charging nor driving. Each command wakes the car's modem (12 V battery), so use a long interval; after a timeout it waits a full interval before trying again. Off by default."
+          "idle_refresh_interval": "Sends \"Refresh data\" to the car when it has been silent this long and is neither charging nor driving. Each command wakes the car's modem (12 V battery), so use a long interval; after a timeout it waits a full interval before trying again. Off by default.",
+          "driving_check_interval": "Sends \"Refresh data\" while the car reports driving, until it answers that it is parked (the server only clears \"driving\" when the car sends a packet with the ignition off, which does not happen when the end-of-trip report is declined on the navigation screen). After 3 unanswered questions in a row it pauses until the car sends data, to protect the 12 V battery. Off by default."
         }
       }
     }

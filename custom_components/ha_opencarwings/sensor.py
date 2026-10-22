@@ -32,6 +32,7 @@ from .freshness import (
     command_summary,
     data_age_minutes,
     data_timestamp,
+    driving_unconfirmed,
     format_local,
     format_minutes,
 )
@@ -278,7 +279,7 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
             return "quick_charging"
         if ev.get("charging"):
             return "charging"
-        if ev.get("car_running"):
+        if ev.get("car_running") and not driving_unconfirmed(self._get_car().get_latest_car()):
             return "running"
         if ev.get("ac_status"):
             return "ac_on"
@@ -303,6 +304,7 @@ class CarStatusSensor(OpenCarwingsCarEntity, SensorEntity):
                 else int(age)
             ),
             "command_requested": car.get("command_requested"),
+            "driving_unconfirmed": driving_unconfirmed(self._get_car().get_latest_car()),
             "signal_level": car.get("signal_level"),
             "carrier": car.get("carrier"),
             "navi_version": car.get("navi_version"),

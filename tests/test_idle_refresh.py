@@ -39,7 +39,8 @@ def test_off_means_never():
 def test_never_while_charging_driving_or_pending():
     old = NOW - timedelta(days=5)
     assert idle_refresh_due(make_car(charging=True, last_updated=old), interval_minutes=DAY, now=NOW) is False
-    running = _car(last_updated=old)
+    # driving the car has not confirmed for a long time does not block the check (see test_stalled_and_driving)
+    running = _car(last_updated=NOW - timedelta(minutes=2), last_connection=NOW - timedelta(minutes=2))
     running.ev_info.car_running = True
     assert idle_refresh_due(running, interval_minutes=DAY, now=NOW) is False
     assert idle_refresh_due(_car(last_updated=old, command_requested=True), interval_minutes=DAY, now=NOW) is False

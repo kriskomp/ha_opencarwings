@@ -15,6 +15,7 @@ DEFAULT_SCAN_INTERVAL_MIN = 15
 DEFAULT_CHARGING_REFRESH_MIN = 0
 # 0 = off. Minutes of silence after which a parked car is asked for data (hours or days).
 DEFAULT_IDLE_REFRESH_MIN = 0
+DEFAULT_DRIVING_CHECK_MIN = 0
 # Live updates over WebSocket (on by default); REST stays as a slow safety poll.
 DEFAULT_USE_WEBSOCKET = True
 SAFETY_POLL_MIN = 30
@@ -181,6 +182,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         unsub_idle = async_track_time_interval(hass, idle.async_tick, timedelta(minutes=IDLE_CHECK_MINUTES))
         if hasattr(entry, "async_on_unload"):
             entry.async_on_unload(unsub_idle)
+
+    # "Is it still driving?" question to a car that reports driving (off by default)
+    driving_min = int(opts.get("driving_check_interval", entry.data.get("driving_check_interval", DEFAULT_DRIVING_CHECK_MIN)) or 0)
+    if driving_min > 0:
+        from homeassistant.helpers.event import async_track_time_interval
+        from .charging_refresh import DrivingCheck
+
+        driving = DrivingCheck(hass, entry.entry_id, driving_min)
+        hass.data[DOMAIN][entry.entry_id]["driving_check"] = driving
+        unsub_driving = async_track_time_interval(hass, driving.async_tick, timedelta(minutes=driving_min))
+        if hasattr(entry, "async_on_unload"):
+            entry.async_on_unload(unsub_driving)
 
     # Options (scan interval, charging refresh, freshness threshold) apply after a reload
     if hasattr(entry, "add_update_listener") and hasattr(entry, "async_on_unload"):
